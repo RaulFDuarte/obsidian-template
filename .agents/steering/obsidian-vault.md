@@ -10,14 +10,14 @@ This workspace is the user's personal Obsidian vault. You act as a productivity 
 
 | Note | Path | Role | Agent may |
 |---|---|---|---|
-| 📥 Caixa de Entrada | `📝 Prática/📥 Caixa de Entrada.md` | "RAM": raw, unstructured captures of the day, in one section, `🗂️ Para categorizar` (triaged with the user). Drafts, half-sentences and memory anchors for bigger tasks. | Read; append; remove items only after they were triaged (skill `processar-inbox`). |
-| 🔨 Projetos | `📝 Prática/🔨 Projetos.md` | The single source of truth for tasks. Only tasks here are tracked. | Read; surgical edits. |
-| 📋 Tarefas | `📝 Prática/📋 Tarefas.md` | Dashboard of Tasks queries over 🔨 Projetos (Atrasadas, Hoje, Próximos 7 dias, Futuro, Sem Data). | Never edit, except the queries themselves when the user asks. |
-| ✍️ Notas | `🔗 Recursos/✍️ Notas.md` | Long-lived reminders, goals, 1:1 topics, ideas that last days or months. Free format. Not tracked by the dashboard. | Read; append only with user confirmation. |
+| Caixa de Entrada | `Prática/Caixa de Entrada.md` | "RAM": raw, unstructured captures of the day, in one section, `🗂️ Para categorizar` (triaged with the user). Drafts, half-sentences and memory anchors for bigger tasks. | Read; append; remove items only after they were triaged (skill `processar-inbox`). |
+| Projetos | `Prática/Projetos.md` | The single source of truth for tasks. Only tasks here are tracked. | Read; surgical edits. |
+| Tarefas | `Prática/Tarefas.md` | Dashboard of Tasks queries over Projetos (Atrasadas, Hoje, Próximos 7 dias, Futuro, Sem Data). | Never edit, except the queries themselves when the user asks. |
+| Lembretes | `Prática/Lembretes.md` | Long-lived reminders, goals, 1:1 topics, ideas that last days or months. Free format. Not tracked by the dashboard. | Read; append only with user confirmation. |
 
-Detailed notes: when a task carries a lot of content (more than ~5 lines of context, open discussion, decisions, research), it becomes its own note at `📝 Prática/<Nome descritivo>.md` (plain markdown, no Tasks dates). The task in 🔨 Projetos links to it with `[[Nome descritivo]]`. Only the linking task counts for the dashboard.
+Detailed notes: when a task carries a lot of content (more than ~5 lines of context, open discussion, decisions, research), it becomes its own note at `Prática/<Nome descritivo>.md` (plain markdown, no Tasks dates). The task in Projetos links to it with `[[Nome descritivo]]`. Only the linking task counts for the dashboard.
 
-## 🔨 Projetos structure
+## Projetos structure
 
 ```
 # <emoji> <Área>                          ← H1 per domain area; areas separated by `---`
@@ -52,7 +52,7 @@ Detailed notes: when a task carries a lot of content (more than ~5 lines of cont
 - Zombie tasks (no date, no progress, low priority for a long time) are handled by skill `revisao-semanal`.
 - Facts are your job: look things up in the vault (or with tools) instead of asking the user. Decisions (priority, dates, destination, discard) are the user's.
 - After editing, summarize briefly in pt-BR: what changed, where, and any cascades.
-- Lines in the Caixa starting with `*` are instructions for the agent, not notes: read and process them in the current round, never create them as tasks in 🔨 Projetos. Actions that change many files or the look of Obsidian become a question in the Triagem first.
+- Lines in the Caixa starting with `*` are instructions for the agent, not notes: read and process them in the current round, never create them as tasks in Projetos. Actions that change many files or the look of Obsidian become a question in the Triagem first.
 
 ## Skill philosophy (interactive skills)
 

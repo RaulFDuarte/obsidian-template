@@ -4,13 +4,13 @@ Cópia dos mecanismos do vault pessoal (`flow`), **sem as tarefas e sem conteúd
 
 ## O que vem aqui
 
-### Dashboard e calendário (`📝 Prática/`)
-- **`📋 Tarefas.md`** - dashboard. Calendário em `dataviewjs` (visões mês/semana/dia, drag & drop, ordem manual do dia, árvore de subtarefas, botão direito = Edit task) e as queries do Tasks (Atrasadas, Sem Data).
-- **`🔨 Projetos.md`** - fonte única das tarefas (`SOURCE_PAGE` do calendário). Vem só a estrutura (Caixa embutida via bloco `flow-caixa` + cabeçalhos de área e épico), esvaziada.
-- **`📥 Caixa de Entrada.md`** - vazia.
+### Dashboard e calendário (`Prática/`)
+- **`Tarefas.md`** - dashboard. Calendário em `dataviewjs` (visões mês/semana/dia, drag & drop, ordem manual do dia, árvore de subtarefas, botão direito = Edit task) e as queries do Tasks (Atrasadas, Sem Data).
+- **`Projetos.md`** - fonte única das tarefas (`SOURCE_PAGE` do calendário). Vem só a estrutura (Caixa embutida via bloco `flow-caixa` + cabeçalhos de área e épico), esvaziada.
+- **`Caixa de Entrada.md`** - vazia.
+- **`Lembretes.md`** - vazia. Lembretes de longo prazo (não entra no dashboard).
 
-### Recursos (`🔗 Recursos/`)
-- **`✍️ Notas.md`** - vazia. Lembretes de longo prazo (não entra no dashboard).
+### Recursos (`Recursos/`)
 - **`Obsidian Plugins/`** - docs de referência do Calendar, do Tasks e das correções do obsidian-git.
 
 ### Configuração do Obsidian (`.obsidian/`)
@@ -32,4 +32,4 @@ Tarefas e seu conteúdo, notas detalhadas, Anotações, Estudos, Prompts, Histó
 2. Em Configurações → Plugins da comunidade, confie no vault e ative os plugins.
 3. Em Configurações → Aparência → Snippets CSS, ative `calendario-tarefas` e `task-toolbar-modern`.
 4. Ajuste `.agents/flow.config.json` (agente e modelo disponíveis na máquina).
-5. Preencha o `🔨 Projetos.md` seguindo a estrutura dos cabeçalhos.
+5. Preencha o `Projetos.md` seguindo a estrutura dos cabeçalhos.

@@ -1,11 +1,11 @@
 ---
 name: agendamento-dinamico
-description: Schedule, reschedule or postpone tasks in 🔨 Projetos while keeping each workday within capacity (cascade rule, unbreakable deadlines). Use whenever the user creates a task with a date, asks to schedule/postpone/adiar/reagendar a task, sets a prazo or "data limite", or asks to rebalance the week.
+description: Schedule, reschedule or postpone tasks in Projetos while keeping each workday within capacity (cascade rule, unbreakable deadlines). Use whenever the user creates a task with a date, asks to schedule/postpone/adiar/reagendar a task, sets a prazo or "data limite", or asks to rebalance the week.
 ---
 
 # Agendamento Dinâmico
 
-Insert or move tasks in `📝 Prática/🔨 Projetos.md` so that every day stays feasible. Syntax, structure and paths come from the `obsidian-vault` steering. Only 🔨 Projetos counts. Ignore checkboxes in the Caixa de Entrada, Notas and detailed notes.
+Insert or move tasks in `Prática/Projetos.md` so that every day stays feasible. Syntax, structure and paths come from the `obsidian-vault` steering. Only Projetos counts. Ignore checkboxes in the Caixa de Entrada, Lembretes and detailed notes.
 
 ## 0. Overdue mode
 

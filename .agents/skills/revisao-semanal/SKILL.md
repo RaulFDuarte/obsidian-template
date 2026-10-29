@@ -1,15 +1,15 @@
 ---
 name: revisao-semanal
-description: Weekly review of the Obsidian vault backlog. Finds overdue, rolled-over, stagnant and zombie tasks in 🔨 Projetos, overloaded days, finished epics, broken links and orphan notes, then interviews the user to decide what to break down, reschedule, move to Notas or discard. Use when the user says "revisão semanal", "weekly review", "revisar tarefas", "revisar backlog", "limpar backlog", "tarefas zumbis" or "o que está parado".
+description: Weekly review of the Obsidian vault backlog. Finds overdue, rolled-over, stagnant and zombie tasks in Projetos, overloaded days, finished epics, broken links and orphan notes, then interviews the user to decide what to break down, reschedule, move to Lembretes or discard. Use when the user says "revisão semanal", "weekly review", "revisar tarefas", "revisar backlog", "limpar backlog", "tarefas zumbis" or "o que está parado".
 ---
 
 # Revisão Semanal
 
-Keep 🔨 Projetos honest: everything there should be something the user still intends to do. Vault rules come from the `obsidian-vault` steering. Scheduling rules come from `agendamento-dinamico`.
+Keep Projetos honest: everything there should be something the user still intends to do. Vault rules come from the `obsidian-vault` steering. Scheduling rules come from `agendamento-dinamico`.
 
 ## Phase 1 — Scan (facts are your job)
 
-Read `📝 Prática/🔨 Projetos.md`, `📝 Prática/📥 Caixa de Entrada.md`, `🔗 Recursos/✍️ Notas.md` and list `📝 Prática/`. Build these findings:
+Read `Prática/Projetos.md`, `Prática/Caixa de Entrada.md`, `Prática/Lembretes.md` and list `Prática/`. Build these findings:
 
 1. **Atrasadas**: open tasks with `📅` before today.
 2. **Roladas**: open tasks with `⏳` before today (they keep reappearing in "Hoje").
@@ -20,7 +20,7 @@ Read `📝 Prática/🔨 Projetos.md`, `📝 Prática/📥 Caixa de Entrada.md`,
 7. **Concluídas acumuladas**: `[x]` subtrees with `✅` older than 30 days that clutter the file.
 8. **🌐 Abas do Navegador**: each pending tab item.
 9. **Links quebrados**: `[[...]]` in Projetos pointing to notes that don't exist.
-10. **Notas órfãs**: notes in `📝 Prática/` (except the 3 core notes and `✅ Linha do Tempo`) not linked from Projetos.
+10. **Notas órfãs**: notes in `Prática/` (except the 4 core notes and `Linha do Tempo`) not linked from Projetos.
 11. **Caixa pendente**: number of items still in the Caixa de Entrada.
 
 Show a short summary with counts per category before asking anything.
@@ -32,15 +32,15 @@ Use the same round format and frontier logic as `processar-inbox` (numbered ques
 - **Reagendar** (new `⏳`, run the cascade rules)
 - **Quebrar** (vague or too big: propose concrete subtasks)
 - **Promover** (raise priority / add `📅`)
-- **Mover para Notas** (long-lived idea, not a task)
+- **Mover para Lembretes** (long-lived idea, not a task)
 - **Virar nota própria** (too much inline context)
 - **Concluir** (mark `[x]`) or **Cancelar** (`[-]`)
 - **Descartar** (delete the line)
-- **Arquivar** (move old done subtrees to `✅ Linha do Tempo`)
+- **Arquivar** (move old done subtrees to `Linha do Tempo`)
 
 To keep rounds manageable:
 - Bundle low-stakes categories (épicos concluídos, concluídas acumuladas, links quebrados) into one question each, with a table of proposed actions.
-- For 🌐 Abas do Navegador, one question with a table `Aba | Ação sugerida` (descartar, virar tarefa em <épico>, mover para Notas).
+- For 🌐 Abas do Navegador, one question with a table `Aba | Ação sugerida` (descartar, virar tarefa em <épico>, mover para Lembretes).
 - If the Caixa has items, the last question offers to run `processar-inbox` next.
 
 ## Phase 3 — Confirm and apply

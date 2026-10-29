@@ -7,7 +7,7 @@ export PATH="$HOME/.local/bin:$PATH" # o Obsidian não herda o PATH do shell
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 VAULT="$(cd "$DIR/../.." && pwd)"
-CAIXA="$VAULT/📝 Prática/📥 Caixa de Entrada.md"
+CAIXA="$VAULT/Prática/Caixa de Entrada.md"
 STATE=/tmp/flow-skill
 skill="${1:?skill}"; arg="${2:-}"
 mkdir -p "$STATE"
@@ -20,7 +20,7 @@ flock -n 9 || { notify "já existe uma execução em andamento"; exit 1; }
 
 ts=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$STATE/backups/$ts"
-cp "$VAULT"/📝\ Prática/*.md "$VAULT"/🔗\ Recursos/*.md "$STATE/backups/$ts/" 2>/dev/null
+cp "$VAULT"/Prática/*.md "$VAULT"/Recursos/*.md "$STATE/backups/$ts/" 2>/dev/null
 
 # Feedback imediato: as capturas saem da tela (vão para o frontmatter) e aparece "processando".
 if [ "$(caixa begin)" = "VAZIA" ]; then notify "Caixa vazia"; exit 0; fi
@@ -53,7 +53,7 @@ if [ $code -eq 0 ]; then
 	caixa callout ok "$out"
 	notify "$(echo "$out" | head -n 1)"
 else
-	cp "$STATE/backups/$ts/📥 Caixa de Entrada.md" "$CAIXA" # devolve as capturas à nota
+	cp "$STATE/backups/$ts/Caixa de Entrada.md" "$CAIXA" # devolve as capturas à nota
 	caixa callout fail "Falhou. Suas capturas foram devolvidas à nota.
 Log: $STATE/err.log"
 	notify "falhou, veja $STATE/err.log"

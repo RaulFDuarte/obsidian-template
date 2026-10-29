@@ -4,7 +4,7 @@ cssclasses:
 ---
 ```dataviewjs
 // ---------------------------------------------------------------------------
-// Calendário de tarefas (⏳ scheduled / 📅 due) do 🔨 Projetos.md
+// Calendário de tarefas (⏳ scheduled / 📅 due) do Projetos.md
 // - Visões: mês, semana e dia, só dias úteis (config em .agents/flow.config.json);
 //   tarefas de dias de folga aparecem no dia útil anterior
 // - Visão dia: lista com checkbox, tarefa pai e árvore de subtarefas; no dia de
@@ -16,8 +16,8 @@ cssclasses:
 // - Botão direito: abre o modal "Edit task" do plugin Tasks
 // ---------------------------------------------------------------------------
 
-const SOURCE_PAGE = '📝 Prática/🔨 Projetos.md';
-const ARQ_ORDEM = '📝 Prática/.ordem-do-dia.json';
+const SOURCE_PAGE = 'Prática/Projetos.md';
+const ARQ_ORDEM = 'Prática/.ordem-do-dia.json';
 const ARQ_CONFIG = '.agents/flow.config.json';
 const EMOJI = { scheduled: '⏳', due: '📅' };
 const PRIORIDADES = ['🔺', '⏫', '🔼', '🔽', '⏬'];
@@ -611,7 +611,7 @@ render();
 
 # ⚠️ Atrasadas
 ```tasks
-path includes 🔨 Projetos
+path includes Projetos
 not done
 due before today
 hide toolbar
@@ -621,7 +621,7 @@ hide task count
 ```
 # 🗓️ Sem Data
 ```tasks
-path includes 🔨 Projetos
+path includes Projetos
 not done
 (no due date) AND (no scheduled date)
 short mode

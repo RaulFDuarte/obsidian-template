@@ -1,4 +1,4 @@
-// Flow Inbox: mostra a 📥 Caixa de Entrada como painel. O arquivo markdown continua sendo
+// Flow Inbox: mostra a Caixa de Entrada como painel. O arquivo markdown continua sendo
 // a fonte da verdade (o agente lê e escreve nele); a view só desenha campos de texto e
 // checkboxes sobre as linhas dele, mesmo sem entrar no modo edição.
 const { Plugin, ItemView, MarkdownRenderChild, MarkdownRenderer, Notice, parseYaml, setIcon } = require('obsidian');
@@ -6,7 +6,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const VIEW = 'flow-caixa';
-const CAIXA = '📝 Prática/📥 Caixa de Entrada.md';
+const CAIXA = 'Prática/Caixa de Entrada.md';
 const SCRIPT = '.agents/scripts/flow-skill.sh';
 const SKILL = 'processar-inbox';
 const MARCA_A = '<!--flow-status-->';
@@ -340,7 +340,7 @@ class CaixaView extends ItemView {
 	}
 
 	getViewType() { return VIEW; }
-	getDisplayText() { return '📥 Caixa de Entrada'; }
+	getDisplayText() { return 'Caixa de Entrada'; }
 	getIcon() { return 'inbox'; }
 	getState() { return { file: this.caminho }; }
 

@@ -1,6 +1,6 @@
 ---
 name: processar-inbox
-description: Triage the 📥 Caixa de Entrada into 🔨 Projetos, ✍️ Notas or detailed notes, interviewing the user (grill-me rounds) to understand drafts and memory anchors before structuring anything. Also runs headless from the Obsidian buttons (argument `modo-nota`). Use when the user says "processar inbox", "processar caixa de entrada", "triar caixa", "limpar caixa de entrada", "organizar caixa", or pastes an unstructured dump (meeting notes, To Do export, loose text) to be turned into tasks.
+description: Triage the Caixa de Entrada into Projetos, Lembretes or detailed notes, interviewing the user (grill-me rounds) to understand drafts and memory anchors before structuring anything. Also runs headless from the Obsidian buttons (argument `modo-nota`). Use when the user says "processar inbox", "processar caixa de entrada", "triar caixa", "limpar caixa de entrada", "organizar caixa", or pastes an unstructured dump (meeting notes, To Do export, loose text) to be turned into tasks.
 ---
 
 # Processar Caixa de Entrada
@@ -11,22 +11,22 @@ Vault rules (paths, Projetos structure, Tasks syntax, capacity) come from the `o
 
 ## Seções da Caixa
 
-The Caixa has one capture section, `## 🗂️ Para categorizar`: its items go through Phases 1-5 below. Items that need no categorization are typed straight into 🔨 Projetos by the user, not here. If the Caixa has no heading (old raw dump), treat everything as `Para categorizar`.
+The Caixa has one capture section, `## 🗂️ Para categorizar`: its items go through Phases 1-5 below. Items that need no categorization are typed straight into Projetos by the user, not here. If the Caixa has no heading (old raw dump), treat everything as `Para categorizar`.
 
 ## Phase 1 — Gather facts (your job, never the user's)
 
-1. Read `📝 Prática/📥 Caixa de Entrada.md` (or the dump pasted in chat), `📝 Prática/🔨 Projetos.md` and `🔗 Recursos/✍️ Notas.md`. List the notes in `📝 Prática/`.
+1. Read `Prática/Caixa de Entrada.md` (or the dump pasted in chat), `Prática/Projetos.md` and `Prática/Lembretes.md`. List the notes in `Prática/`.
 2. Split the input into items: each top-level bullet with its children, or each free-text block/heading.
 3. For each item, look up everything you can before asking:
    - Matching epic/area in Projetos (by tag, keywords, linked notes).
    - Duplicates or overlaps with existing tasks (same MR, env var, lib, card, person).
-   - Related detailed notes in `📝 Prática/` or reminders in Notas.
+   - Related detailed notes in `Prática/` or reminders in Lembretes.
    - Environment facts (repos, MRs, and Jira cards only if `jira` is `true` in `.agents/flow.config.json`) via tools or a `context-gatherer` sub-agent. Don't block the round on a slow lookup: only questions that depend on it wait.
 4. Classify each item provisionally:
    - **Clara**: actionable, destination obvious.
    - **Âncora**: scribble pointing at something bigger; meaning, scope or outcome unknown.
    - **Duplicada**: already in Projetos (possibly with new info to merge).
-   - **Lembrete**: belongs in Notas (long-lived, not an actionable task).
+   - **Lembrete**: belongs in Lembretes (long-lived, not an actionable task).
    - **Contexto**: information supporting a task (may become a detailed note).
    - **Ruído/feito**: already done or no longer relevant.
 
@@ -35,12 +35,12 @@ The Caixa has one capture section, `## 🗂️ Para categorizar`: its items go t
 Map the triage as a **design tree**: each item is a root; each decision branches into the decisions that depend on it. Typical branches per item:
 
 - What is the real task behind it? What is the expected outcome / done criterion?
-- Destination: existing epic (which), new epic/H1, Notas, detailed note, or discard.
+- Destination: existing epic (which), new epic/H1, Lembretes, detailed note, or discard.
 - Breakdown into subtasks.
 - Priority, `⏳` and `📅` (only after the task itself is understood).
 - Merge strategy for duplicates (what new info to add to the existing task).
 
-**Default `⏳`:** every new actionable task (not epics, not Notas items, not context bullets) gets `⏳ <today>` (current date, `YYYY-MM-DD`) unless the user or the item defines another scheduled date. Use it as the recommended answer in rounds and in the Phase 3 plan, and still apply the capacity check from `agendamento-dinamico` (today's load may require a cascade).
+**Default `⏳`:** every new actionable task (not epics, not Lembretes items, not context bullets) gets `⏳ <today>` (current date, `YYYY-MM-DD`) unless the user or the item defines another scheduled date. Use it as the recommended answer in rounds and in the Phase 3 plan, and still apply the capacity check from `agendamento-dinamico` (today's load may require a cascade).
 
 Work in **rounds**. The **frontier** is every decision whose prerequisites are already settled. Ask the whole frontier in one round, numbered, each with your recommended answer. A question that depends on another question still open in this round goes to a later round. Never ask for facts you can look up.
 
@@ -68,7 +68,7 @@ After each answer, update the tree, recompute the frontier and ask the next roun
 ## Phase 3 — Confirm the plan
 
 Present the final plan, without editing anything yet:
-- Table `Item | Destino | Ação` (inserir, mesclar, criar nota, mover para Notas, descartar, manter na Caixa).
+- Table `Item | Destino | Ação` (inserir, mesclar, criar nota, mover para Lembretes, descartar, manter na Caixa).
 - The exact lines to be inserted into Projetos, under the named H1/epic.
 - Scheduling impact: days that would exceed capacity and the cascade you propose (rules from `agendamento-dinamico`).
 
@@ -77,15 +77,15 @@ Wait for explicit confirmation ("ok", "pode aplicar"). Do not act before it.
 ## Phase 4 — Apply
 
 1. Projetos: insert under the confirmed epic with surgical `str_replace`, TAB indentation, steering syntax. Merge duplicates into the existing task instead of creating a new one.
-2. Detailed notes: create `📝 Prática/<Nome descritivo>.md` with the full context (plain markdown) and link it from the task with `[[Nome descritivo]]`.
-3. Notas: append to the section the user chose.
+2. Detailed notes: create `Prática/<Nome descritivo>.md` with the full context (plain markdown) and link it from the task with `[[Nome descritivo]]`.
+3. Lembretes: append to the section the user chose.
 4. Normalize text: clean, actionable wording; fix obvious typos; keep links, IDs, MR numbers, env vars, file names and technical terms intact.
 5. Caixa de Entrada: remove only the items that were triaged. Leave the items the user kept, untouched.
 6. Apply any cascade the user confirmed.
 
 ## Phase 5 — Report (pt-BR, short)
 
-- What went where (Projetos epic, nota nova, Notas, descartado).
+- What went where (Projetos epic, nota nova, Lembretes, descartado).
 - Cascades applied (`tarefa: data antiga → data nova`).
 - What stayed in the Caixa.
 
@@ -97,7 +97,7 @@ State lives in the Caixa frontmatter: `processar-inbox: idle | perguntas | decis
 
 ### Round (`modo-nota`)
 
-1. Read the steering, Caixa, Projetos and Notas. Decide the round type: if `processar-inbox` is `decisao-final`, the approvals are checked and no answer was changed, this press means **Apply** (section below); if it is `decisao-final` but nothing is approved and nothing changed, change nothing and say in the report what to approve; otherwise run the round below. On the first round the wrapper has already moved the captures out of sight into the frontmatter: `capturas_para_categorizar` (a YAML text block, one item per bullet). Treat it as the contents of the Caixa section. The section itself does not exist in the body during a triage (the wrapper manages the template: do not create or keep it). Loose bullets typed in the body outside the managed blocks are new captures for `Para categorizar`.
+1. Read the steering, Caixa, Projetos and Lembretes. Decide the round type: if `processar-inbox` is `decisao-final`, the approvals are checked and no answer was changed, this press means **Apply** (section below); if it is `decisao-final` but nothing is approved and nothing changed, change nothing and say in the report what to approve; otherwise run the round below. On the first round the wrapper has already moved the captures out of sight into the frontmatter: `capturas_para_categorizar` (a YAML text block, one item per bullet). Treat it as the contents of the Caixa section. The section itself does not exist in the body during a triage (the wrapper manages the template: do not create or keep it). Loose bullets typed in the body outside the managed blocks are new captures for `Para categorizar`.
 2. Items in `Para categorizar` are new captures: run Phase 1 on them and copy them verbatim into the collapsed callout at the bottom of the Caixa (remove loose ones from the body):
    ```
    > [!note]- Original (dump de <YYYY-MM-DD>)
@@ -121,7 +121,7 @@ State lives in the Caixa frontmatter: `processar-inbox: idle | perguntas | decis
    - Always close the Triagem with the general field block `### 💬 Outra mensagem ao agente` and `✏️ mensagem: `, keeping the user's text inside it.
 5. When the frontier is empty, replace the open questions with the Phase 3 plan: the table, the exact lines to insert, the cascade, and one `- [ ] aprovar` per action plus `- [ ] aprovar tudo`. Set `processar-inbox: decisao-final`. If the user then edits an answer, go back to step 3 and re-plan.
 
-Keep the line of `obsidian://` button links under the frontmatter untouched. Never delete the user's text from the note, and never touch Projetos/Notas/detailed notes in a round.
+Keep the line of `obsidian://` button links under the frontmatter untouched. Never delete the user's text from the note, and never touch Projetos/Lembretes/detailed notes in a round.
 
 ### Apply (press in `decisao-final`)
 
