@@ -1,0 +1,5 @@
+# Num vault privado (fork), os dados locais sempre vencem no merge com o upstream.
+# Requer `git config merge.ours.driver true` (o sincronizar-mecanismos.sh configura).
+"Prática/Projetos.md" merge=ours
+"Prática/Caixa de Entrada.md" merge=ours
+"Prática/Lembretes.md" merge=ours

@@ -4,9 +4,18 @@
 ### 📋️ Sem Categoria
 
 ---
-## 💎 Obsidian
+# 💼 Trabalho
+- [ ] 🚀 Lançar versão 2.0 #trabalho
+	- [ ] Revisar o changelog ⏫
+	- [ ] Publicar o release
+		- contexto em bullet simples, sem checkbox
 
 ---
-## 🖥️ Escritório 
+# 🏠 Casa
+- [ ] 🧹 Organizar a garagem #casa
+	- [ ] Separar doações 🔽
+
 ---
-## ⚕️ Saúde
+# ⚕️ Saúde
+- [ ] 🏃 Rotina de exercícios #saude
+	- [ ] Marcar check-up anual

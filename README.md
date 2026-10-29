@@ -33,3 +33,20 @@ Tarefas e seu conteúdo, notas detalhadas, Anotações, Estudos, Prompts, Histó
 3. Em Configurações → Aparência → Snippets CSS, ative `calendario-tarefas` e `task-toolbar-modern`.
 4. Ajuste `.agents/flow.config.json` (agente e modelo disponíveis na máquina).
 5. Preencha o `Projetos.md` seguindo a estrutura dos cabeçalhos.
+
+## Usando com um vault privado (seus dados)
+O obsidian-flow só tem mecanismos. Seus dados ficam num repo **privado** que contém o vault inteiro (mecanismos + dados), para o celular receber tudo pelo obsidian-git. Esse repo privado aponta para o obsidian-flow como `upstream`.
+
+Montar (uma vez por vault privado):
+```bash
+git clone git@github.com:<você>/obsidian-flow.git meu-vault && cd meu-vault
+git remote rename origin upstream
+git remote add origin git@github.com:<você>/<repo-privado>.git
+git push -u origin main
+```
+
+No dia a dia, edite tudo no vault privado (o obsidian-git commita sozinho). Quando quiser levar mudanças de mecanismo para o upstream, ou trazer as feitas em outra máquina:
+```bash
+.agents/scripts/sincronizar-mecanismos.sh "o que mudou"
+```
+O script traz o upstream, monta um commit só com os caminhos listados em `MECANISMOS` (`.agents`, `.obsidian`, `Prática/Tarefas.md`...), mostra o que vai subir e pede confirmação. Dados nunca entram, mesmo que estejam no mesmo commit que a mudança de mecanismo. Nos merges, `.gitattributes` faz os dados locais vencerem.
