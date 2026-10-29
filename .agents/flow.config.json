@@ -1,0 +1,7 @@
+{
+  "weekStart": "mon",
+  "workdays": ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
+  "agent": "claude",
+  "jira": false,
+  "modelo": { "claude": "haiku", "kiro": "" }
+}

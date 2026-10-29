@@ -1,0 +1,13 @@
+{
+  "enabledByDefault": false,
+  "scale": 0.1,
+  "minimapOpacity": 0.3,
+  "sliderOpacity": 0.3,
+  "sliderIdleOpacity": 0.09,
+  "topOffset": 58,
+  "bottomOffset": 0,
+  "scrollbarGutter": 14,
+  "minViewportHeight": 24,
+  "reserveSpace": false,
+  "centerOnClick": true
+}

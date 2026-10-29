@@ -1,0 +1,319 @@
+/* ============================================
+   Calendário de Tarefas (Dataview grid)
+   Ativar em: Configurações → Aparência → Snippets CSS
+   ============================================ */
+
+/* Barra superior */
+.cal-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cal-header button {
+  cursor: pointer;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+  box-shadow: none;
+}
+
+.cal-header button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.cal-titulo {
+  font-weight: 600;
+  font-size: 1.1rem;
+  min-width: 12rem;
+  text-align: center;
+}
+
+/* Grupos de toggle (segmented control) */
+.cal-toggle {
+  display: inline-flex;
+  margin-left: 0.5rem;
+}
+
+.cal-toggle button {
+  border-radius: 0;
+  margin: 0;
+}
+
+.cal-toggle button + button {
+  border-left: none;
+}
+
+.cal-toggle button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.cal-toggle button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.cal-header button.cal-ativo {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+/* Grade 7 colunas */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 2px;
+  background: var(--background-modifier-border);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.cal-dow {
+  background: var(--background-secondary);
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 0.4rem 0;
+}
+
+/* Célula de dia */
+.cal-cel {
+  background: var(--background-primary);
+  min-height: 90px;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  transition: background 0.1s;
+}
+
+.cal-cel-fds {
+  background: var(--background-primary-alt);
+}
+
+/* Dias do mês anterior/seguinte na visão mensal */
+.cal-cel-fora {
+  background: var(--background-secondary);
+  opacity: 0.55;
+}
+
+.cal-cel-hoje {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.cal-drop-alvo {
+  background: color-mix(in srgb, var(--interactive-accent) 15%, var(--background-primary));
+  outline: 2px dashed var(--interactive-accent);
+  outline-offset: -2px;
+}
+
+.cal-num {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  align-self: flex-end;
+}
+
+.cal-cel-hoje .cal-num {
+  color: var(--interactive-accent);
+}
+
+/* Visão semanal: células altas, texto quebra em vez de cortar */
+.cal-grid-semana .cal-cel {
+  min-height: 360px;
+}
+
+.cal-grid-semana .cal-num {
+  align-self: stretch;
+  text-align: center;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 2px;
+}
+
+.cal-grid-semana .cal-task {
+  white-space: normal;
+  font-size: 0.78rem;
+}
+
+/* Chip de tarefa */
+.cal-task {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  padding: 2px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-task[draggable="true"] {
+  cursor: grab;
+}
+
+.cal-arrastando {
+  opacity: 0.4;
+}
+
+.cal-task-scheduled {
+  background: color-mix(in srgb, var(--color-blue) 22%, transparent);
+  border-left: 3px solid var(--color-blue);
+}
+
+.cal-task-due {
+  background: color-mix(in srgb, var(--color-purple) 30%, transparent);
+  border-left: 3px solid var(--color-purple);
+}
+
+/* Texto encolhe com reticências; a folga fica sempre visível à direita */
+.cal-task {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.cal-task-texto {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-task-folga {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+/* Agendada depois do prazo (folga negativa) */
+/* Só o chip ⏳ fica vermelho; o 📅 continua laranja, mas mostra o -n */
+.cal-task-scheduled.cal-task-atrasada {
+  background: color-mix(in srgb, var(--color-red) 35%, transparent);
+  border-left-color: var(--color-red);
+}
+
+.cal-task-scheduled.cal-task-atrasada .cal-task-folga {
+  color: var(--color-red);
+  opacity: 1;
+}
+
+.cal-task-done {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.cal-task-cancel {
+  opacity: 0.45;
+  text-decoration: line-through;
+  font-style: italic;
+}
+
+/* ⏳ no mesmo dia do 📅: laranja, como o prazo */
+.cal-task-scheduled.cal-task-no-prazo {
+  background: color-mix(in srgb, var(--color-orange) 35%, transparent);
+  border-left-color: var(--color-orange);
+}
+
+/* Indicador de posição ao reordenar tarefas dentro do dia */
+.cal-drop-antes {
+  box-shadow: 0 -3px 0 0 var(--interactive-accent);
+}
+.cal-drop-depois {
+  box-shadow: 0 3px 0 0 var(--interactive-accent);
+}
+
+/* Clique no número do dia abre a visão dia */
+.cal-num {
+  cursor: pointer;
+}
+.cal-num:hover {
+  color: var(--interactive-accent);
+}
+
+/* Tarefa pai nos chips da visão semana (linha de baixo, menor) */
+.cal-grid-semana .cal-task {
+  flex-wrap: wrap;
+}
+.cal-task-pai {
+  flex-basis: 100%;
+  font-size: 0.68rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Visão dia: lista com ordem manual */
+.dia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 120px;
+  padding: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+.dia-lista-hoje {
+  border-color: var(--interactive-accent);
+}
+.dia-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.dia-item[draggable="true"] {
+  cursor: grab;
+}
+.dia-item:hover {
+  background: var(--background-modifier-hover);
+}
+.dia-item .task-list-item-checkbox {
+  margin-top: 4px;
+  cursor: pointer;
+}
+.dia-item-fechado .dia-texto {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+.dia-meta {
+  font-size: var(--font-smaller);
+  color: var(--text-muted);
+}
+.dia-vazio {
+  color: var(--text-muted);
+  padding: 4px 6px;
+}
+
+/* Árvore de subtarefas na visão dia */
+.dia-filhos {
+  list-style: none;
+  padding-left: 18px;
+  margin: 2px 0 0;
+  cursor: default;
+}
+.dia-filho {
+  font-size: var(--font-smaller);
+}
+.dia-filho .task-list-item-checkbox {
+  margin-right: 6px;
+}
+.dia-filho-fechado > span {
+  text-decoration: line-through;
+  color: var(--text-faint);
+}
+.dia-filho-contexto::before {
+  content: "• ";
+  color: var(--text-muted);
+}

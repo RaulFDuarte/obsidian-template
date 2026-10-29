@@ -1,0 +1,9 @@
+{
+	"id": "flow-inbox",
+	"name": "Flow Inbox",
+	"version": "0.1.0",
+	"minAppVersion": "1.13.0",
+	"description": "Abre a Caixa de Entrada como um painel editável (capturas, perguntas do agente, botão por fase) e dispara as skills do flow.",
+	"author": "Raul",
+	"isDesktopOnly": true
+}

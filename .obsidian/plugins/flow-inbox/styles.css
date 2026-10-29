@@ -1,0 +1,111 @@
+.flow-caixa-raiz { padding: 0; }
+
+.flow-caixa {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+/* Botão principal (topo e rodapé) */
+.flow-caixa button.flow-botao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: auto;
+  min-height: 2.75rem;
+  margin: 0.5rem 0 1rem;
+  padding: 0.6rem 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.3;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.1s ease;
+}
+.flow-caixa button.flow-botao:hover:not(:disabled) { filter: brightness(1.1); box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); }
+.flow-caixa button.flow-botao:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); }
+.flow-caixa button.flow-botao:disabled { opacity: 0.6; cursor: progress; }
+
+/* Card de resultado com OK */
+.flow-card { margin: 0.5rem 0 1rem; }
+.flow-card .callout { margin-bottom: 0.4rem; }
+.flow-caixa button.flow-ok {
+  display: block;
+  height: auto;
+  margin: 0 0 0 auto;
+  padding: 0.35rem 1.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Capturas e ✏️ */
+.flow-secao, .flow-rodape { margin: 0.75rem 0 1rem; }
+.flow-secao-titulo {
+  margin-bottom: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+.flow-caixa textarea.flow-texto {
+  display: block;
+  width: 100%;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.7rem;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.5;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+.flow-caixa textarea.flow-texto:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--interactive-accent) 30%, transparent);
+}
+
+/* Opções e campo "outra resposta" */
+.flow-check { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.25rem 0; cursor: pointer; }
+.flow-check input { margin-top: 0.3rem; }
+.flow-check-texto p { margin: 0; }
+.flow-campo { display: flex; align-items: flex-start; gap: 0.5rem; margin: 0.4rem 0 1rem; }
+.flow-campo-rotulo { padding-top: 0.5rem; color: var(--text-muted); white-space: nowrap; }
+.flow-campo textarea.flow-texto { flex: 1; }
+
+.flow-md > :first-child { margin-top: 0; }
+.flow-vazio { padding: 2rem; text-align: center; color: var(--text-muted); }
+
+/* Botão "editar tarefa" na margem esquerda da linha */
+.flow-captura { position: relative; padding-left: 1.9rem; }
+.flow-espelho { position: absolute; visibility: hidden; pointer-events: none; top: 0; left: 0; white-space: pre-wrap; overflow-wrap: break-word; }
+.flow-editar-tarefa {
+  position: absolute;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  box-shadow: none;
+  transition: color 0.12s, border-color 0.12s;
+}
+.flow-editar-tarefa:hover { color: var(--interactive-accent); border-color: var(--interactive-accent); }
+.flow-editar-tarefa svg { width: 0.9rem; height: 0.9rem; }
+
+/* Painel embutido em outra nota (bloco flow-caixa) */
+.flow-embed {
+  margin: 0 0 1rem;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 10px;
+}

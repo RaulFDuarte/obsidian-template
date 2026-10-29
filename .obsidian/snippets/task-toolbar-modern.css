@@ -1,0 +1,84 @@
+/* ============================================
+   Tasks Toolbar — Modern & Minimal
+   ============================================ */
+
+/* Container da toolbar */
+.plugin-tasks-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    opacity: 0.7;
+    transition: opacity 0.2s ease, box-shadow 0.2s ease;
+    max-width: fit-content;
+}
+
+.plugin-tasks-toolbar:hover {
+    opacity: 1;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Input de filtro */
+.plugin-tasks-toolbar input[type="text"],
+.plugin-tasks-toolbar input[type="search"] {
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-muted);
+    min-width: 160px;
+    max-width: 220px;
+    height: 26px;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.plugin-tasks-toolbar input[type="text"]:focus,
+.plugin-tasks-toolbar input[type="search"]:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px rgba(var(--interactive-accent-rgb), 0.15);
+    color: var(--text-normal);
+}
+
+.plugin-tasks-toolbar input[type="text"]::placeholder,
+.plugin-tasks-toolbar input[type="search"]::placeholder {
+    color: var(--text-faint);
+    font-size: 11px;
+}
+
+/* Botões da toolbar */
+.plugin-tasks-toolbar button {
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.plugin-tasks-toolbar button:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+}
+
+/* Ícone de filtro (se existir como SVG/span) */
+.plugin-tasks-toolbar svg {
+    width: 14px;
+    height: 14px;
+    opacity: 0.6;
+}
+
+.plugin-tasks-toolbar:hover svg {
+    opacity: 0.9;
+}

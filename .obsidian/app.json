@@ -1,0 +1,15 @@
+{
+  "alwaysUpdateLinks": true,
+  "newFileLocation": "current",
+  "promptDelete": false,
+  "attachmentFolderPath": "🗄️ Arquivo/🖼️",
+  "readableLineLength": false,
+  "livePreview": true,
+  "spellcheck": false,
+  "useMarkdownLinks": true,
+  "showInlineTitle": false,
+  "propertiesInDocument": "hidden",
+  "showLineNumber": false,
+  "showIndentGuide": true,
+  "vimMode": false
+}

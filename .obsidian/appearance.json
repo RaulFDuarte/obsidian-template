@@ -1,0 +1,13 @@
+{
+  "accentColor": "",
+  "baseFontSize": 12,
+  "theme": "obsidian",
+  "baseFontSizeAction": true,
+  "showRibbon": true,
+  "nativeMenus": false,
+  "enabledCssSnippets": [
+    "task-toolbar-modern",
+    "calendario-tarefas"
+  ],
+  "showViewHeader": true
+}
