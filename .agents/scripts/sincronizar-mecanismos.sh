@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sincroniza os mecanismos entre um vault privado e o obsidian-flow (remote `upstream`), nos dois sentidos.
+# Sincroniza os mecanismos entre um vault privado e o template público (remote `upstream`), nos dois sentidos.
 # Uso (de dentro do vault privado): sincronizar-mecanismos.sh "mensagem do commit"
 # 1. traz o que mudou no upstream (ex.: feito em outra máquina);
 # 2. publica no upstream só os caminhos de MECANISMOS. Dados nunca saem daqui, mesmo que estejam no mesmo commit.
@@ -11,7 +11,7 @@ VAULT="$(cd "$(dirname "$0")/../.." && pwd)"
 msg="${1:?uso: sincronizar-mecanismos.sh \"mensagem do commit\"}"
 cd "$VAULT"
 
-git remote get-url upstream >/dev/null 2>&1 || { echo "Falta o remote upstream (git remote add upstream <url do obsidian-flow>)"; exit 1; }
+git remote get-url upstream >/dev/null 2>&1 || { echo "Falta o remote upstream (git remote add upstream <url do template>)"; exit 1; }
 [ -z "$(git status --porcelain -- "${MECANISMOS[@]}")" ] || { echo "Há mudanças de mecanismo sem commit. Commite (ou espere o obsidian-git) e rode de novo."; exit 1; }
 git config merge.ours.driver true # usado pelo .gitattributes: no merge, os dados locais sempre vencem
 
