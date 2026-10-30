@@ -20,7 +20,7 @@ Read `Prática/Projetos.md`, `Prática/Caixa de Entrada.md`, `Prática/Lembretes
 7. **Concluídas acumuladas**: `[x]` subtrees with `✅` older than 30 days that clutter the file.
 8. **🌐 Abas do Navegador**: each pending tab item.
 9. **Links quebrados**: `[[...]]` in Projetos pointing to notes that don't exist.
-10. **Notas órfãs**: notes in `Prática/` (except the 4 core notes and `Linha do Tempo`) not linked from Projetos.
+10. **Notas órfãs**: notes in `Prática/` (except the 4 core notes) not linked from Projetos.
 11. **Caixa pendente**: number of items still in the Caixa de Entrada.
 
 Show a short summary with counts per category before asking anything.
@@ -36,7 +36,7 @@ Use the same round format and frontier logic as `processar-inbox` (numbered ques
 - **Virar nota própria** (too much inline context)
 - **Concluir** (mark `[x]`) or **Cancelar** (`[-]`)
 - **Descartar** (delete the line)
-- **Arquivar** (move old done subtrees to `Linha do Tempo`)
+- **Arquivar** (move old done subtrees to `Recursos/Histórico.md`, creating it if missing)
 
 To keep rounds manageable:
 - Bundle low-stakes categories (épicos concluídos, concluídas acumuladas, links quebrados) into one question each, with a table of proposed actions.
