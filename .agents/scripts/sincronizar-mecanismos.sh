@@ -5,7 +5,7 @@
 # 2. publica no upstream só os caminhos de MECANISMOS. Dados nunca saem daqui, mesmo que estejam no mesmo commit.
 set -euo pipefail
 
-MECANISMOS=(.agents .claude .kiro .obsidian "Prática/Tarefas.md" .gitignore .gitattributes README.md)
+MECANISMOS=(.agents .claude .kiro .obsidian "Prática/Tarefas.md" .github .gitignore .gitattributes)
 
 VAULT="$(cd "$(dirname "$0")/../.." && pwd)"
 msg="${1:?uso: sincronizar-mecanismos.sh \"mensagem do commit\"}"
