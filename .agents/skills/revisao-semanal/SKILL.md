@@ -9,7 +9,7 @@ Keep Projetos honest: everything there should be something the user still intend
 
 ## Phase 1 — Scan (facts are your job)
 
-Read `Prática/Projetos.md`, `Prática/Caixa de Entrada.md`, `Prática/Lembretes.md` and list `Prática/`. Build these findings:
+Read `Prática/Projetos.md`, `Prática/Caixa de Entrada.md`, `Prática/Lembretes.md` and list `Prática/Tarefas/` (except `Brave/`). Build these findings:
 
 1. **Atrasadas**: open tasks with `📅` before today.
 2. **Roladas**: open tasks with `⏳` before today (they keep reappearing in "Hoje").
@@ -20,7 +20,7 @@ Read `Prática/Projetos.md`, `Prática/Caixa de Entrada.md`, `Prática/Lembretes
 7. **Concluídas acumuladas**: `[x]` subtrees with `✅` older than 30 days that clutter the file.
 8. **🌐 Abas do Navegador**: each pending tab item.
 9. **Links quebrados**: `[[...]]` in Projetos pointing to notes that don't exist.
-10. **Notas órfãs**: notes in `Prática/` (except the 4 core notes) not linked from Projetos.
+10. **Notas órfãs**: notes in `Prática/Tarefas/` (except `Brave/`) not linked from Projetos.
 11. **Caixa pendente**: number of items still in the Caixa de Entrada.
 
 Show a short summary with counts per category before asking anything.

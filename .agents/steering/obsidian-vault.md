@@ -12,10 +12,17 @@ This workspace is the user's personal Obsidian vault. You act as a productivity 
 |---|---|---|---|
 | Caixa de Entrada | `Prática/Caixa de Entrada.md` | "RAM": raw, unstructured captures of the day, in one section, `🗂️ Para categorizar` (triaged with the user). Drafts, half-sentences and memory anchors for bigger tasks. | Read; append; remove items only after they were triaged (skill `processar-inbox`). |
 | Projetos | `Prática/Projetos.md` | The single source of truth for tasks. Only tasks here are tracked. | Read; surgical edits. |
-| Tarefas | `Prática/Tarefas.md` | Dashboard of Tasks queries over Projetos (Atrasadas, Hoje, Próximos 7 dias, Futuro, Sem Data). | Never edit, except the queries themselves when the user asks. |
+| Painel | `Prática/Painel.md` | Dashboard of Tasks queries over Projetos (Atrasadas, Hoje, Próximos 7 dias, Futuro, Sem Data). | Never edit, except the queries themselves when the user asks. |
 | Lembretes | `Prática/Lembretes.md` | Long-lived reminders, goals, 1:1 topics, ideas that last days or months. Free format. Not tracked by the dashboard. | Read; append only with user confirmation. |
 
-Detailed notes: when a task carries a lot of content (more than ~5 lines of context, open discussion, decisions, research), it becomes its own note at `Prática/<Nome descritivo>.md` (plain markdown, no Tasks dates). The task in Projetos links to it with `[[Nome descritivo]]`. Only the linking task counts for the dashboard.
+Detailed notes: when a task carries a lot of content (more than ~5 lines of context, open discussion, decisions, research), it becomes its own note at `Prática/Tarefas/<Nome descritivo>.md` (plain markdown, no Tasks dates). The task in Projetos links to it with `[[Nome descritivo]]`. Only the linking task counts for the dashboard.
+
+## Template vs data
+
+This vault is the private repo (`origin`) with data. `upstream` is the **public** template, which receives only the paths in `MECANISMOS` (`.agents/scripts/sincronizar-mecanismos.sh`).
+
+- Mechanisms (code, skills, plugins, `Prática/Painel.md`) must stay generic: no personal data, because they get published.
+- Data (Projetos, Caixa, Lembretes, `Prática/Tarefas/`, `Recursos/`) stays private and may hold sensitive content.
 
 ## Projetos structure
 
@@ -45,6 +52,10 @@ Detailed notes: when a task carries a lot of content (more than ~5 lines of cont
 - The "Hoje" dashboard also shows overdue `⏳`, so overdue scheduled tasks count toward today's load.
 - `⏳` is flexible and can cascade to the next workday. `📅` is unbreakable: if a cascade would push a task past its `📅`, stop and warn the user.
 - Details live in skill `agendamento-dinamico`.
+
+## Brave
+
+`.agents/brave/` syncs Brave tab groups with notes in `Prática/Tarefas/Brave/` (one note per group, `_Soltas_.md` for ungrouped tabs); details in `.agents/brave/README.md`. Edit those notes freely (add, remove or reorder link lines) and the service applies it to the browser. Removing a line closes the tab.
 
 ## Other rules
 

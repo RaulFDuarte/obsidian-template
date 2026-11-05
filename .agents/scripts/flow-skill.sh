@@ -20,7 +20,7 @@ flock -n 9 || { notify "já existe uma execução em andamento"; exit 1; }
 
 ts=$(date +%Y%m%d-%H%M%S)
 mkdir -p "$STATE/backups/$ts"
-cp "$VAULT"/Prática/*.md "$VAULT"/Recursos/*.md "$STATE/backups/$ts/" 2>/dev/null
+cp "$VAULT"/Prática/*.md "$VAULT"/Prática/Tarefas/*.md "$VAULT"/Recursos/*.md "$STATE/backups/$ts/" 2>/dev/null
 
 # Feedback imediato: as capturas saem da tela (vão para o frontmatter) e aparece "processando".
 if [ "$(caixa begin)" = "VAZIA" ]; then notify "Caixa vazia"; exit 0; fi

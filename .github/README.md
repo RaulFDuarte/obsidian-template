@@ -12,12 +12,12 @@ Quatro notas em `Prática/`, pensadas para ficarem abertas lado a lado:
 |---|---|
 | `Caixa de Entrada.md` | Captura rápida e bagunçada do dia. Tudo cai aqui primeiro. |
 | `Projetos.md` | Fonte única das tarefas. Áreas (H1) → épicos (tarefa de topo) → subtarefas. Só o que está aqui é rastreado. |
-| `Tarefas.md` | Painel: calendário (mês/semana/dia, arrastar para reagendar, ordem manual do dia) e listas de Atrasadas e Sem Data. Não se edita à mão. |
+| `Painel.md` | Painel: calendário (mês/semana/dia, arrastar para reagendar, ordem manual do dia) e listas de Atrasadas e Sem Data. Não se edita à mão. |
 | `Lembretes.md` | Metas, ideias e assuntos de longo prazo, em formato livre. Fora do painel. |
 
 Tarefas usam a sintaxe do plugin Tasks: `⏳` data planejada (flexível), `📅` prazo (inegociável), prioridades `🔺 ⏫ 🔼 🔽 ⏬`. Veja `Prática/Projetos.md` para um exemplo da estrutura.
 
-Quando uma tarefa acumula muito contexto, ela vira uma nota própria em `Prática/` e a tarefa passa a apontar para ela com `[[link]]`.
+Quando uma tarefa acumula muito contexto, ela vira uma nota própria em `Prática/Tarefas/` e a tarefa passa a apontar para ela com `[[link]]`.
 
 ### O agente
 
@@ -71,7 +71,7 @@ No dia a dia, use e edite tudo no seu vault (o plugin Git pode commitar sozinho)
 
 O script:
 1. traz o `upstream` e faz merge; `.gitattributes` garante que `Projetos`, `Caixa de Entrada` e `Lembretes` locais sempre vençam;
-2. monta um commit para o `upstream` copiando **só** os caminhos da lista `MECANISMOS` no topo do script (`.agents`, `.obsidian`, `Prática/Tarefas.md`, ...), mostra o que vai subir e pede confirmação.
+2. monta um commit para o `upstream` copiando **só** os caminhos da lista `MECANISMOS` no topo do script (`.agents`, `.obsidian`, `Prática/Painel.md`, ...), mostra o que vai subir e pede confirmação.
 
 Seus dados nunca entram nesse commit, mesmo que estejam no mesmo commit local que a mudança de mecanismo. Se criar um novo arquivo de mecanismo fora desses caminhos, inclua-o na lista.
 
@@ -81,6 +81,6 @@ Seus dados nunca entram nesse commit, mesmo que estejam no mesmo commit local qu
 .agents/          steering, skills, scripts e flow.config.json do agente
 .claude/ .kiro/   links simbólicos para .agents (um por agente)
 .obsidian/        plugins, snippets CSS, atalhos e configurações
-Prática/          as 4 notas-núcleo e as notas de tarefas detalhadas
+Prática/          as 4 notas-núcleo; Tarefas/ guarda as notas de tarefas detalhadas e Tarefas/Brave/ os grupos de abas (.agents/brave)
 Recursos/         material de referência (docs dos plugins Calendar, Tasks e Git)
 ```

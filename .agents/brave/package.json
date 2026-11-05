@@ -1,0 +1,7 @@
+{
+  "name": "flow-brave",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/unit.test.mjs", "e2e": "node test/e2e.mjs" },
+  "dependencies": { "classic-level": "^3.0.0", "ws": "^8.18.0" }
+}

@@ -20,7 +20,7 @@ The Caixa has one capture section, `## 🗂️ Para categorizar`: its items go t
 3. For each item, look up everything you can before asking:
    - Matching epic/area in Projetos (by tag, keywords, linked notes).
    - Duplicates or overlaps with existing tasks (same MR, env var, lib, card, person).
-   - Related detailed notes in `Prática/` or reminders in Lembretes.
+   - Related detailed notes in `Prática/Tarefas/` or reminders in Lembretes.
    - Environment facts (repos, MRs, and Jira cards only if `jira` is `true` in `.agents/flow.config.json`) via tools or a `context-gatherer` sub-agent. Don't block the round on a slow lookup: only questions that depend on it wait.
 4. Classify each item provisionally:
    - **Clara**: actionable, destination obvious.
@@ -77,7 +77,7 @@ Wait for explicit confirmation ("ok", "pode aplicar"). Do not act before it.
 ## Phase 4 — Apply
 
 1. Projetos: insert under the confirmed epic with surgical `str_replace`, TAB indentation, steering syntax. Merge duplicates into the existing task instead of creating a new one.
-2. Detailed notes: create `Prática/<Nome descritivo>.md` with the full context (plain markdown) and link it from the task with `[[Nome descritivo]]`.
+2. Detailed notes: create `Prática/Tarefas/<Nome descritivo>.md` with the full context (plain markdown) and link it from the task with `[[Nome descritivo]]`.
 3. Lembretes: append to the section the user chose.
 4. Normalize text: clean, actionable wording; fix obvious typos; keep links, IDs, MR numbers, env vars, file names and technical terms intact.
 5. Caixa de Entrada: remove only the items that were triaged. Leave the items the user kept, untouched.

@@ -1,0 +1,10 @@
+[Unit]
+Description=Sincroniza grupos do Brave com o vault Obsidian
+
+[Service]
+ExecStart=@NODE@ @DIR@/servico.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

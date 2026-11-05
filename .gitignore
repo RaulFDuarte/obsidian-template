@@ -2,3 +2,4 @@
 .obsidian/workspace-mobile.json
 __pycache__/
 .obsidian/plugins/obsidian-git/obsidian_askpass.sh
+node_modules/
