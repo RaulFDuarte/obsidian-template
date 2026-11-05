@@ -59,6 +59,21 @@ async function acionarInterface(plano) {
   if (!r.ok) falhasInterface.push(`Brave: edição do grupo fechado "${titulo}" continua pendente (${r.motivo}).`);
 }
 
+/** Link clicado cuja URL está num grupo fechado: abre o grupo e leva até a aba. Sem grupo, a aba nova fica como está. */
+async function abrirPorLink({ tabId, url }) {
+  const { notas } = lerNotas();
+  const bases = lerEstado().grupos ?? {};
+  const fechados = Object.values(bases).filter((b) => b.estado === "fechado");
+  const nota = notas.find((n) => n.estado === "fechado" && n.itens.some((i) => i.url === url));
+  const titulo = nota && (bases[nota.id]?.titulo ?? nota.arquivo);
+  console.log(`link: ${titulo ? `grupo fechado "${titulo}"` : "fora de grupo fechado"}`);
+  if (!titulo || fechados.filter((b) => b.titulo === titulo).length > 1) return;
+  const r = await interface_("abrir", titulo);
+  if (!r.ok) return console.error(`link não abriu "${titulo}": ${r.motivo}`);
+  esperaAbrir.set(titulo, Date.now() + 15000);
+  conexao?.send(JSON.stringify({ tipo: "focar", tabId, url }));
+}
+
 let conexao = null, snap = null, rodando = false, pendente = false, seq = 0;
 const esperando = new Map();
 
@@ -159,6 +174,8 @@ wss.on("connection", (ws) => {
     if (m.tipo === "estado") {
       if (!rodando) agendar(1000); else pendente = true;
       snap = m;
+    } else if (m.tipo === "link") {
+      abrirPorLink(m).catch((e) => console.error("link falhou:", e));
     } else if (m.tipo === "aplicado") {
       esperando.get(m.id)?.(m);
       esperando.delete(m.id);

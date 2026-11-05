@@ -79,26 +79,37 @@ def esperar(f, s=4):
     return None
 
 
+def visivel(o):
+    return o.get_state_set().contains(Atspi.StateType.SHOWING)
+
+
 def abrir(app, titulo):
     t = re.escape(titulo)
     fechado = re.compile(rf"^\s*grupo\s+{t}:\s+Fechado$")
-    if achar(app, "button", re.compile(rf"^\s*grupo\s+{t}:\s+Aberto$")):
+    aberto = re.compile(rf"^\s*grupo\s+{t}:\s+Aberto$")
+    cabecalho = re.compile(rf"^Grupo\s+{t}\s+–")
+    abriu = lambda: achar(app, "button", aberto) or achar(app, "page tab list", cabecalho)  # noqa: E731
+
+    if abriu():
         responder(True, "já aberto")
+    # Botão que não cabe na barra aceita o comando e não faz nada; o estado "visível" não distingue isso
+    # de uma barra oculta, onde ele funciona. Por isso tenta, confere e só então vai pelo menu.
     botao = achar(app, "button", fechado)
     if botao:
-        responder(bool(agir(botao, "open")))
-    menu = achar(app, "button", re.compile(r"^Grupos de guias$"))
+        agir(botao, "open")
+        if esperar(abriu, 2.5):
+            responder(True)
+    menus = [o for o in nos(app) if o.get_role_name() == "button" and o.get_name() == "Grupos de guias"]
+    menu = next((o for o in menus if visivel(o)), menus[0] if menus else None)
     if not menu:
         responder(False, "interface indisponível (Brave sem a flag de acessibilidade?)")
     agir(menu, "open")
     item = esperar(lambda: achar(app, "menu item", fechado))
     if item:
-        responder(bool(agir(item, "select")))
-    if achar(app, "menu item", re.compile(rf"^\s*grupo\s+{t}:\s+Aberto$")):
-        agir(menu, "open")
-        responder(True, "já aberto")
-    agir(menu, "open")
-    responder(False, "grupo não encontrado no Brave")
+        agir(item, "select")
+    else:
+        agir(menu, "open")  # fecha o menu
+    responder(True) if esperar(abriu) else responder(False, "o Brave não abriu o grupo")
 
 
 def fechar(app, titulo):

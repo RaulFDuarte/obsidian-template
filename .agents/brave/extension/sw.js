@@ -23,6 +23,7 @@ function conectar() {
   ws.onmessage = async (e) => {
     const m = JSON.parse(e.data);
     if (m.tipo === "pedirEstado") return agendar(0);
+    if (m.tipo === "focar") return focar(m);
     if (m.tipo !== "aplicar") return;
     aplicando++;
     let r;
@@ -115,19 +116,39 @@ async function aplicar({ grupos = [], soltas = { soltar: [], criar: [] }, fechar
   return { falhas };
 }
 
-// Link aberto de fora (ex.: Obsidian) cuja URL já está aberta: vai até a aba em vez de duplicar.
-chrome.tabs.onCreated.addListener(async (nova) => {
-  if (aplicando || !nova.active || !nova.pendingUrl || !(await pronto())) return;
-  const iguais = (await chrome.tabs.query({})).filter((t) =>
-    t.id !== nova.id && (t.url === nova.pendingUrl || t.pendingUrl === nova.pendingUrl));
-  const alvo = iguais.find((t) => t.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) ?? iguais[0];
-  if (!alvo) return;
-  if (alvo.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE)
-    await chrome.tabGroups.update(alvo.groupId, { collapsed: false });
+const SEM_GRUPO = chrome.tabGroups.TAB_GROUP_ID_NONE;
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function irPara(alvo, nova) {
+  if (alvo.groupId !== SEM_GRUPO) await chrome.tabGroups.update(alvo.groupId, { collapsed: false });
   await chrome.tabs.update(alvo.id, { active: true });
   await chrome.windows.update(alvo.windowId, { focused: true });
-  await chrome.tabs.remove(nova.id);
+  await chrome.tabs.remove(nova);
+}
+
+// Link aberto de fora (ex.: Obsidian): vai até a aba em vez de duplicar. Sem aba aberta, o serviço
+// procura a URL nos grupos fechados.
+chrome.tabs.onCreated.addListener(async (nova) => {
+  if (aplicando || !nova.active || !nova.pendingUrl || !(await pronto())) return;
+  // Abrir um grupo salvo também cria abas ativas, que só entram no grupo logo depois.
+  await dormir(500);
+  const atual = await chrome.tabs.get(nova.id).catch(() => null);
+  if (!atual || atual.groupId !== SEM_GRUPO || aplicando) return;
+  const url = nova.pendingUrl;
+  const iguais = (await chrome.tabs.query({})).filter((t) => t.id !== nova.id && (t.url === url || t.pendingUrl === url));
+  const alvo = iguais.find((t) => t.groupId !== SEM_GRUPO) ?? iguais[0];
+  if (alvo) await irPara(alvo, nova.id);
+  else enviar({ tipo: "link", tabId: nova.id, url });
 });
+
+// O serviço abriu o grupo fechado que contém o link: a aba surge em instantes.
+async function focar({ url, tabId }) {
+  for (let i = 0; i < 40; i++) {
+    const alvo = (await chrome.tabs.query({})).find((t) => t.id !== tabId && t.groupId !== SEM_GRUPO && (t.url === url || t.pendingUrl === url));
+    if (alvo) return irPara(alvo, tabId);
+    await dormir(250);
+  }
+}
 
 const mudou = () => agendar();
 chrome.tabs.onCreated.addListener(mudou);

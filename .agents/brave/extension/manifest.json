@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Flow Brave",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Espelha grupos e abas nas notas do vault Obsidian.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5Y5HALu3CqtnrKVlKlL2gIRUT7Dyb31nvWGMaziA19jItn97ipREi4qhHy+MLxFT6ceh01tBX+nbuMkczXspSE0hfrMLc+swGrpoiqHTu5LlfjYYnmk4AI7kr6dr9UNLK52uTe8Ju95CR0l0ZRJccT2J9HZz5Xd1sbhNSjPtATfyAr702+Dzqnd/DWdSogkgQysC5KGcUIJIjTYNmzBzWdAv5Fny+HpgWiE1xlxPuTY29BBoG1GWbKRH4fhP74linSZIbzWPrHKYU3APTwLgxnybwpUrrhPCDltBpTPaZBQGdZ7gNIY8wmmpps17qQzyAorgoNdxTiXWuZ/J9EMe3QIDAQAB",
   "minimum_chrome_version": "116",

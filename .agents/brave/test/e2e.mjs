@@ -270,6 +270,30 @@ try {
   const semDup = (await lerLoja(`${PROF}/Default`)).length;
   if (semDup === total - 2) console.log(`ok   nenhuma duplicata (${semDup})`); else { falhas++; console.log(`FALHA Sync foi de ${total} para ${semDup}`); }
 
+  // Abrir grupo cuja URL também está numa aba solta não pode fechar nenhuma das duas
+  await ev(`chrome.tabs.create({url:${JSON.stringify(U("c"))},active:false})`);
+  await sleep(3000);
+  editar("Renomeado", (t) => t + `- ${U("r-nova")}\n`);
+  await espera("grupo com URL repetida recebe a edição", async () => (await noSync("Renomeado"))?.itens.some((i) => i.url === U("r-nova")), 60000);
+  await espera("e fecha de novo", async () => (await estado()).grupos.length === 0, 30000);
+  await sleep(3000);
+  if ((await noSync("Renomeado")).itens.some((i) => i.url === U("c")) && (await estado()).tabs.some((t) => t.u === U("c"))) console.log("ok   URL repetida segue nos dois lugares"); else { falhas++; console.log("FALHA abertura fechou aba de URL repetida"); }
+
+  // Clique em link de grupo fechado
+  const linkAlvo = U("volta");
+  const salvosAntes = (await lerLoja(`${PROF}/Default`)).length;
+  try { execFileSync("/snap/bin/brave", [`--user-data-dir=${PROF}`, linkAlvo], { timeout: 15000, stdio: "ignore" }); } catch {}
+  await espera("link abre o grupo fechado", async () => (await noGrupo("Sem traco"))?.includes(linkAlvo), 30000);
+  await espera("e foca a aba do grupo", async () => { const e = await estado(); const g = e.grupos.find((x) => x.t === "Sem traco"); return g && e.tabs.find((t) => t.u === linkAlvo && t.g === g.id)?.a; }, 20000);
+  await espera("sem aba solta sobrando", async () => (await estado()).tabs.filter((t) => t.u === linkAlvo).length === 1, 20000);
+  await sleep(8000);
+  if ((await noGrupo("Sem traco"))?.includes(linkAlvo)) console.log("ok   grupo fica aberto depois do clique"); else { falhas++; console.log("FALHA grupo fechou"); }
+  if ((await lerLoja(`${PROF}/Default`)).length === salvosAntes) console.log("ok   clique não duplica"); else { falhas++; console.log("FALHA clique duplicou"); }
+  await espera("nota do clique vira aberta", () => nota("Sem traco")?.includes("estado: aberto"), 20000);
+  const urlFora = U("fora-de-grupo");
+  try { execFileSync("/snap/bin/brave", [`--user-data-dir=${PROF}`, urlFora], { timeout: 15000, stdio: "ignore" }); } catch {}
+  await espera("link sem grupo segue abrindo solto", async () => (await estado()).tabs.some((t) => t.u === urlFora), 15000);
+
   // Sem a flag: nada se perde
   await fechar();
   await abrir(false, false);
@@ -299,8 +323,8 @@ try {
   try { await fechar(); } catch {}
 } finally {
   srv?.kill(); web.close();
-  const log = fs.readFileSync(`${BASE}/srv.log`, "utf8").split("\n").filter((l) => /falhou|Error|ilegível/.test(l));
-  if (log.length) console.log("LOG:", log.slice(0, 10).join("\n"));
+  const log = fs.readFileSync(`${BASE}/srv.log`, "utf8").split("\n").filter((l) => /falhou|Error|ilegível|link/.test(l));
+  if (log.length) console.log("LOG:", log.slice(0, 20).join("\n"));
   fs.rmSync(BASE, { recursive: true, force: true });
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo ok");
   process.exit(falhas ? 1 : 0);

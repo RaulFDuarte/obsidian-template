@@ -22,7 +22,7 @@ Log: `journalctl --user -u flow-brave -f`. Testes: `npm test` e `npm run e2e` (a
 | Renomeia nota ou grupo, ou muda `cor:` | Replica no outro lado |
 | Conclui ou cancela a tarefa | Apaga o grupo (também no Sync); a nota fica como registro |
 | Reabre a tarefa | Recria o grupo |
-| Clica no link da nota, no PC | Foca a aba já aberta em vez de duplicar |
+| Clica no link da nota, no PC | Foca a aba já aberta em vez de duplicar; se ela está num grupo fechado, abre o grupo e vai até a aba |
 | Edita, renomeia ou apaga a nota de um grupo fechado, ou conclui a tarefa dele | O grupo abre, a mudança é aplicada e ele fecha de novo (ou é apagado) |
 
 Outras linhas de texto na nota são preservadas. Em `_Soltas_`, abas fixadas ficam de fora, e a seção 📱 é só leitura: mostra as abas do celular.
