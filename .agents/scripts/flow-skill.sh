@@ -67,10 +67,12 @@ $prompt" ${modelo:+--model "$modelo"} \
 		--permission-mode acceptEdits \
 		--allowedTools "Read Edit Write Glob Grep" </dev/null 2>"$STATE/err.log") ;;
 kiro)
-	out=$(kiro-cli chat --no-interactive --trust-tools=fs_read,fs_write ${modelo:+--model "$modelo"} \
+	out=$(kiro-cli chat --no-interactive --trust-all-tools ${modelo:+--model "$modelo"} \
 		"Use a skill $skill. Argumento: $arg
 
-$prompt" </dev/null 2>"$STATE/err.log" | sed 's/\x1b\[[?0-9;]*[A-Za-z]//g') ;;
+$prompt" </dev/null 2>"$STATE/err.log" | sed 's/\x1b\[[?0-9;]*[A-Za-z]//g')
+	# O kiro emite o raciocínio todo no stdout; o callout/notify só querem o resumo final.
+	out=$(printf '%s\n' "$out" | grep -v '^[[:space:]]*$' | tail -n 1) ;;
 *) echo "agent desconhecido: $agent" >"$STATE/err.log"; false ;;
 esac
 code=$?
