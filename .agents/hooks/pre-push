@@ -18,10 +18,19 @@ VAULT="$(git rev-parse --show-toplevel)"
 LISTA="$VAULT/.agents/mecanismos.txt"
 [ -f "$LISTA" ] || { echo "pre-push: não achei $LISTA; abortando por segurança." >&2; exit 1; }
 
-mapfile -t MEC < <(grep -vE '^\s*(#|$)' "$LISTA" | tr -d '\r')
+mapfile -t TODAS < <(grep -vE '^\s*(#|$)' "$LISTA" | tr -d '\r')
+MEC=(); EXC=()
+for linha in "${TODAS[@]}"; do
+	if [ "${linha#!}" != "$linha" ]; then EXC+=("${linha#!}"); else MEC+=("$linha"); fi
+done
 
 permitido() {
 	local f="$1" m
+	# Exclusões vencem: um caminho excluído nunca é permitido, mesmo sob um prefixo incluído.
+	for m in "${EXC[@]}"; do
+		[ "$f" = "$m" ] && return 1
+		[ "$f" != "${f#"$m"/}" ] && return 1
+	done
 	for m in "${MEC[@]}"; do
 		[ "$f" = "$m" ] && return 0          # arquivo exato
 		[ "$f" != "${f#"$m"/}" ] && return 0  # dentro do diretório m/

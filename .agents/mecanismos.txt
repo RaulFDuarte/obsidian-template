@@ -2,7 +2,10 @@
 # Tudo que não casar com um destes prefixos é DADO PESSOAL e nunca deve ser publicado.
 # Lido por sincronizar-mecanismos.sh (o que publica) e pelo hook pre-push (o que bloqueia atalhos).
 # Um caminho por linha; linhas em branco e # comentário são ignoradas. Compara por prefixo de caminho.
+# Prefixo "!" = exclusão: caminho coberto por um prefixo incluído, mas que NÃO deve ser publicado
+# (config de ambiente do vault privado; o template leva só o .example como modelo).
 .agents
+!.agents/flow.config.json
 .claude
 .kiro
 .obsidian
