@@ -108,15 +108,21 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId, podeAb
   const gLivres = new Map(nomeados.map((g) => [g.id, g]));
   const lLivres = new Map((loja ?? []).map((g) => [g.guid, g]));
 
+  // Sem estado (primeira execução ou estado apagado), o nome do arquivo é o título já limpo de `: / ? .`.
+  const porTitulo = (lista, base, titulo) => {
+    const t = base?.titulo ?? titulo;
+    return lista.find((x) => x.titulo === t)
+      ?? (base ? undefined : lista.find((x) => x.titulo && nomeArquivo(x.titulo, new Set()).toLowerCase() === t?.toLowerCase()));
+  };
   const tomarG = (base, titulo) => {
     let g = base?.groupId != null ? gLivres.get(base.groupId) : null;
-    g ??= [...gLivres.values()].find((x) => x.titulo === (base?.titulo ?? titulo));
+    g ??= porTitulo([...gLivres.values()], base, titulo);
     if (g) gLivres.delete(g.id);
     return g ?? null;
   };
   const tomarL = (base, titulo) => {
     let l = base?.guid ? lLivres.get(base.guid) : null;
-    l ??= [...lLivres.values()].find((x) => x.titulo === (base?.titulo ?? titulo));
+    l ??= porTitulo([...lLivres.values()], base, titulo);
     if (l) lLivres.delete(l.guid);
     return l ?? null;
   };

@@ -20,7 +20,11 @@ const PASTA = path.join(VAULT, REL);
 const PROJETOS = path.join(PRATICA, "Projetos.md");
 const CAIXA = path.join(PRATICA, "Caixa de Entrada.md");
 const hashVault = crypto.createHash("sha1").update(VAULT).digest("hex").slice(0, 10);
-const ESTADO = path.join(process.env.XDG_STATE_HOME ?? path.join(os.homedir(), ".local/state"), "flow-brave", `${hashVault}.json`);
+const WINDOWS = process.platform === "win32";
+const BASE_ESTADO = WINDOWS
+  ? process.env.LOCALAPPDATA ?? path.join(os.homedir(), "AppData", "Local")
+  : process.env.XDG_STATE_HOME ?? path.join(os.homedir(), ".local/state");
+const ESTADO = path.join(BASE_ESTADO, "flow-brave", `${hashVault}.json`);
 const PERFIL = pastaPerfil();
 
 const manifesto = JSON.parse(fs.readFileSync(path.join(AQUI, "extension/manifest.json"), "utf8"));
@@ -38,16 +42,23 @@ const novoId = () => crypto.randomUUID().slice(0, 8);
 const falhasInterface = [];
 const esperaAbrir = new Map(); // título > quando pode tentar de novo
 
+// Mesmo contrato nos dois sistemas: argumentos `abrir|fechar <título>`, resposta JSON {ok, motivo}.
+const [EXEC_INTERFACE, ARGS_INTERFACE] = WINDOWS
+  ? ["powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path.join(AQUI, "interface.ps1")]]
+  : ["python3", ["-W", "ignore", path.join(AQUI, "interface.py")]];
+
 function interface_(acao, titulo) {
   return new Promise((ok) => {
-    execFile("python3", ["-W", "ignore", path.join(AQUI, "interface.py"), acao, titulo], { timeout: 30000 }, (erro, saida) => {
+    execFile(EXEC_INTERFACE, [...ARGS_INTERFACE, acao, titulo], { timeout: 30000, windowsHide: true }, (erro, saida) => {
       try { ok(JSON.parse(saida)); } catch { ok({ ok: false, motivo: erro?.message ?? "sem resposta" }); }
     });
   });
 }
 
 async function acionarInterface(plano) {
-  for (const titulo of plano.fecharUi) {
+  // No Windows, fechar depende de clicar no cabeçalho do grupo, que costuma estar fora da tela:
+  // o grupo editado fica aberto, sem aviso.
+  for (const titulo of WINDOWS ? [] : plano.fecharUi) {
     await new Promise((r) => setTimeout(r, 5000)); // a aba criada precisa chegar a carregar para entrar no grupo salvo
     const r = await interface_("fechar", titulo);
     if (!r.ok) falhasInterface.push(`Brave: não consegui fechar o grupo "${titulo}" depois de editá-lo (${r.motivo}).`);

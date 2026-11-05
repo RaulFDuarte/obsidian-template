@@ -10,8 +10,10 @@ const CORES = [undefined, "grey", "blue", "red", "yellow", "green", "pink", "pur
 export function pastaPerfil(env = process.env) {
   if (env.FLOW_BRAVE_PERFIL) return env.FLOW_BRAVE_PERFIL;
   const h = os.homedir();
-  return [`${h}/snap/brave/current/.config/BraveSoftware/Brave-Browser/Default`, `${h}/.config/BraveSoftware/Brave-Browser/Default`]
-    .find((p) => fs.existsSync(p)) ?? null;
+  const candidatos = process.platform === "win32"
+    ? [path.join(env.LOCALAPPDATA ?? path.join(h, "AppData", "Local"), "BraveSoftware", "Brave-Browser", "User Data", "Default")]
+    : [`${h}/snap/brave/current/.config/BraveSoftware/Brave-Browser/Default`, `${h}/.config/BraveSoftware/Brave-Browser/Default`];
+  return candidatos.find((p) => fs.existsSync(p)) ?? null;
 }
 
 function campos(b) {

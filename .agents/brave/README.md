@@ -11,6 +11,18 @@ Cada grupo de abas do Brave vira uma nota em `Prática/Tarefas/Brave/` e uma tar
 
 Log: `journalctl --user -u flow-brave -f`. Testes: `npm test` e `npm run e2e` (abre um Brave isolado).
 
+## Instalar no Windows
+
+Para Brave e Obsidian no Windows. O serviço precisa rodar no próprio Windows: no WSL, ele não percebe edições feitas pelo Obsidian em `C:\` e não acha o perfil do Brave.
+
+1. Instale o Node.js no Windows e rode `powershell -ExecutionPolicy Bypass -File .agents\brave\instalar.ps1`. O script cria a tarefa agendada `flow-brave`, que roda no logon. Se o serviço do WSL estiver ativo, desligue-o antes com `systemctl --user disable --now flow-brave`, porque os dois usam a mesma porta.
+2. Faça os passos 2 e 3 de cima.
+3. Para editar grupos fechados, acrescente `--force-renderer-accessibility=form-controls` ao campo **Destino** do atalho do Brave e abra o Brave por esse atalho.
+
+O `interface.ps1` substitui o `interface.py` e aciona os mesmos botões pela acessibilidade do Windows (MSAA). Depende da interface em pt-BR. No Windows, o grupo aberto para receber uma edição continua aberto, porque fechá-lo exige clicar no cabeçalho, que costuma estar fora da tela.
+
+Log: `%LOCALAPPDATA%\flow-brave\servico.log`. O estado fica em `%LOCALAPPDATA%\flow-brave\`.
+
 ## Como funciona
 
 | Você faz | Acontece |

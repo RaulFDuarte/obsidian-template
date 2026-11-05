@@ -37,7 +37,10 @@ export function escreverNota(n, celular = []) {
   if (n.cor) fm.push(`cor: ${n.cor}`);
   if (n.estado) fm.push(`estado: ${n.estado}`);
   const partes = [`---\n${fm.join("\n")}\n---`];
-  if (n.estado === "fechado") partes.push("> [!info] Grupo fechado neste PC. Edições aqui abrem o grupo, são aplicadas e ele fecha de novo.");
+  // No Windows o grupo aberto para receber a edição continua aberto (ver servico.mjs).
+  if (n.estado === "fechado") partes.push(process.platform === "win32"
+    ? "> [!info] Grupo fechado neste PC. Edições aqui abrem o grupo e são aplicadas; ele continua aberto."
+    : "> [!info] Grupo fechado neste PC. Edições aqui abrem o grupo, são aplicadas e ele fecha de novo.");
   if (n.itens.length) partes.push(n.itens.map(linha).join("\n"));
   if (n.resto) partes.push(n.resto);
   if (celular.length) {
@@ -49,12 +52,24 @@ export function escreverNota(n, celular = []) {
 
 const linha = (i) => `- [${titulo(i.titulo) || titulo(i.url)}](${url(i.url)})`;
 
+// No Windows, trocar um arquivo aberto por outro processo (Obsidian, antivírus, indexador) falha por alguns
+// instantes com EPERM/EBUSY/EACCES. Tenta de novo e, se continuar preso, escreve direto no arquivo.
+const PRESO = new Set(["EPERM", "EBUSY", "EACCES"]);
+const pausa = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
 export function gravar(arquivo, texto) {
   try { if (fs.readFileSync(arquivo, "utf8") === texto) return false; } catch {}
   const tmp = path.join(path.dirname(arquivo), `.${path.basename(arquivo)}.tmp`);
   fs.writeFileSync(tmp, texto);
-  fs.renameSync(tmp, arquivo);
-  return true;
+  for (let tentativa = 0; ; tentativa++) {
+    try { fs.renameSync(tmp, arquivo); return true; } catch (e) {
+      if (!PRESO.has(e.code)) throw e;
+      if (tentativa < 10) { pausa(100); continue; }
+      fs.writeFileSync(arquivo, texto);
+      fs.rmSync(tmp, { force: true });
+      return true;
+    }
+  }
 }
 
 // Projetos: a tarefa é a linha com checkbox que aponta para a nota, em qualquer forma de link.

@@ -98,3 +98,15 @@ test("nota renomeada e fechada preserva a diferença até aplicar", () => {
   assert.equal(r.novoEstado.grupos.n.arquivo, "G");
   assert.equal(r.grava[0].arquivo, "H");
 });
+test("sem estado, nota com nome limpo casa com o grupo em vez de criar outro", () => {
+  const r = planejar({
+    snap: { tabs: [{ id: 1, url: "a", titulo: "a", grupo: 7, janela: 1, indice: 0, fixada: false }], groups: [{ id: 7, titulo: "TDD?", cor: "red" }] },
+    loja: [{ guid: "g1", titulo: "TDD?", cor: "red", itens: i("a") }],
+    notas: [{ id: "n", arquivo: "TDD-", cor: "red", estado: "aberto", itens: i("a"), resto: "" }],
+    soltas: { itens: [], resto: "" }, estado: { grupos: {}, soltas: { itens: [] } },
+    statusTarefa: () => " ", novoId: () => "z",
+  });
+  assert.equal(r.novoEstado.grupos.n.groupId, 7);
+  assert.equal(Object.keys(r.novoEstado.grupos).length, 1);
+  assert.deepEqual(r.novasTarefas, []);
+});
