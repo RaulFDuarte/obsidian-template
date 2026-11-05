@@ -29,8 +29,36 @@ cd "$VAULT"
 # Agente e modelo vêm de flow.config.json: "agent" (claude | kiro) e "modelo" (um por agente).
 cfg() { python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); print(eval(sys.argv[2]))' "$VAULT/.agents/flow.config.json" "$1" 2>/dev/null; }
 agent=$(cfg 'c.get("agent","claude")'); agent=${agent:-claude}
-modelo=$(cfg 'c.get("modelo",{}).get(c.get("agent","claude"),"")')
+
+# Binário de cada harness; usado tanto para rodar quanto para detectar disponibilidade.
+bin_de() { case "$1" in claude) echo claude ;; kiro) echo kiro-cli ;; *) echo "" ;; esac; }
+disponivel() { local b; b=$(bin_de "$1"); [ -n "$b" ] && command -v "$b" >/dev/null 2>&1; }
+
+# Fallback: se o agente configurado não está instalado, cai para o outro harness
+# disponível e marca a flag para avisar o modelo a corrigir o flow.config.json.
+fallback=""
+if ! disponivel "$agent"; then
+	for alt in kiro claude; do
+		if [ "$alt" != "$agent" ] && disponivel "$alt"; then fallback="$agent"; agent="$alt"; break; fi
+	done
+fi
+
+modelo=$(cfg "c.get('modelo',{}).get('$agent','')")
 prompt="Hoje é $(date +%F). Execução headless: siga o modo nota da skill."
+if [ -n "$fallback" ]; then
+	prompt="$prompt
+
+[FALLBACK] O flow.config.json pede o agente \"$fallback\", mas ele não está instalado neste ambiente; esta execução está rodando no harness \"$agent\" como fallback. Antes de terminar, corrija .agents/flow.config.json definindo \"agent\": \"$agent\" (e, se necessário, ajuste \"modelo\") para que a próxima execução já use o harness correto."
+fi
+if ! disponivel "$agent"; then
+	echo "nenhum harness disponível: instale 'claude' ou 'kiro-cli' (configurado: $agent)" >"$STATE/err.log"
+	cp "$STATE/backups/$ts/Caixa de Entrada.md" "$CAIXA"
+	caixa callout fail "Nenhum harness de IA instalado (claude ou kiro-cli). Suas capturas foram devolvidas à nota.
+Log: $STATE/err.log"
+	notify "nenhum harness disponível"
+	exit 127
+fi
+
 case "$agent" in
 claude)
 	out=$(claude -p "/$skill $arg

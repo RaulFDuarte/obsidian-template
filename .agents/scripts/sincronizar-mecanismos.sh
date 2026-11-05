@@ -5,13 +5,16 @@
 # 2. publica no upstream só os caminhos de MECANISMOS. Dados nunca saem daqui, mesmo que estejam no mesmo commit.
 set -euo pipefail
 
-MECANISMOS=(.agents .claude .kiro .obsidian "Prática/Painel.md" .github .gitignore .gitattributes)
-
 VAULT="$(cd "$(dirname "$0")/../.." && pwd)"
+
+# Lista de mecanismos vem da fonte única (também usada pelo hook pre-push).
+mapfile -t MECANISMOS < <(grep -vE '^\s*(#|$)' "$VAULT/.agents/mecanismos.txt" | tr -d '\r')
+[ "${#MECANISMOS[@]}" -gt 0 ] || { echo "Lista de mecanismos vazia (.agents/mecanismos.txt)"; exit 1; }
 msg="${1:?uso: sincronizar-mecanismos.sh \"mensagem do commit\"}"
 cd "$VAULT"
 
 git remote get-url upstream >/dev/null 2>&1 || { echo "Falta o remote upstream (git remote add upstream <url do template>)"; exit 1; }
+git config core.hooksPath .agents/hooks # garante a trava pre-push (config é local, não versionada)
 [ -z "$(git status --porcelain -- "${MECANISMOS[@]}")" ] || { echo "Há mudanças de mecanismo sem commit. Commite (ou espere o obsidian-git) e rode de novo."; exit 1; }
 git config merge.ours.driver true # usado pelo .gitattributes: no merge, os dados locais sempre vencem
 

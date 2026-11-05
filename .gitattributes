@@ -3,3 +3,10 @@
 "Prática/Projetos.md" merge=ours
 "Prática/Caixa de Entrada.md" merge=ours
 "Prática/Lembretes.md" merge=ours
+
+# Scripts executados em bash (WSL/Linux) precisam de LF, senão o shebang vira `bash\r`
+# e falha com "bad interpreter". Forçamos LF independentemente do SO que fez o checkout.
+*.sh text eol=lf
+*.py text eol=lf
+.agents/hooks/* text eol=lf
+.agents/mecanismos.txt text eol=lf

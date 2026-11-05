@@ -1,0 +1,12 @@
+# Fonte única da verdade: caminhos de MECANISMOS que PODEM ir ao template público (upstream).
+# Tudo que não casar com um destes prefixos é DADO PESSOAL e nunca deve ser publicado.
+# Lido por sincronizar-mecanismos.sh (o que publica) e pelo hook pre-push (o que bloqueia atalhos).
+# Um caminho por linha; linhas em branco e # comentário são ignoradas. Compara por prefixo de caminho.
+.agents
+.claude
+.kiro
+.obsidian
+.github
+.gitignore
+.gitattributes
+Prática/Painel.md

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Trava de segurança do vault privado: recusa qualquer push ao template público (upstream)
+# que inclua arquivos fora de MECANISMOS. Dados pessoais (Prática, Recursos, etc.) só saem
+# daqui pelo sincronizar-mecanismos.sh, que isola os mecanismos numa worktree.
+# Para outros remotes (o de sync privado) o hook não interfere.
+set -euo pipefail
+
+remote_name="${1:-}"
+remote_url="${2:-}"
+
+# Só protege o template público. Identifica pelo nome 'upstream' ou pela URL do template.
+case "$remote_name:$remote_url" in
+	upstream:*|*obsidian-template*) ;;
+	*) exit 0 ;;
+esac
+
+VAULT="$(git rev-parse --show-toplevel)"
+LISTA="$VAULT/.agents/mecanismos.txt"
+[ -f "$LISTA" ] || { echo "pre-push: não achei $LISTA; abortando por segurança." >&2; exit 1; }
+
+mapfile -t MEC < <(grep -vE '^\s*(#|$)' "$LISTA" | tr -d '\r')
+
+permitido() {
+	local f="$1" m
+	for m in "${MEC[@]}"; do
+		[ "$f" = "$m" ] && return 0          # arquivo exato
+		[ "$f" != "${f#"$m"/}" ] && return 0  # dentro do diretório m/
+	done
+	return 1
+}
+
+violacoes=()
+while read -r local_ref local_sha remote_ref remote_sha; do
+	zero=0000000000000000000000000000000000000000
+	[ "$local_sha" = "$zero" ] && continue # deleção de branch: nada a inspecionar
+	if [ "$remote_sha" = "$zero" ]; then
+		# Ref nova no remoto: boundary = último commit já presente em algum remote-tracking.
+		base="$(git rev-list "$local_sha" --not --remotes --reverse 2>/dev/null | head -1)"
+		if [ -n "$base" ]; then
+			# base é o 1º commit novo; compara contra seu pai (ou árvore vazia se for root).
+			parent="$(git rev-parse --verify --quiet "$base^" || true)"
+			if [ -n "$parent" ]; then
+				mapfile -t files < <(git -c core.quotepath=false diff --name-only "$parent..$local_sha" 2>/dev/null | sort -u)
+			else
+				mapfile -t files < <(git -c core.quotepath=false diff --name-only "$(git hash-object -t tree /dev/null)..$local_sha" 2>/dev/null | sort -u)
+			fi
+		else
+			mapfile -t files < <(git -c core.quotepath=false diff --name-only "$local_sha" 2>/dev/null | sort -u)
+		fi
+	else
+		mapfile -t files < <(git -c core.quotepath=false diff --name-only "$remote_sha..$local_sha" 2>/dev/null | sort -u)
+	fi
+	for f in "${files[@]}"; do
+		[ -z "$f" ] && continue
+		permitido "$f" || violacoes+=("$f")
+	done
+done
+
+if [ "${#violacoes[@]}" -gt 0 ]; then
+	printf '%s\n' \
+		"✋ push para o template público BLOQUEADO." \
+		"" \
+		"Este é o vault PRIVADO. O push inclui arquivos que NÃO são mecanismos" \
+		"(provável vazamento de dados pessoais):" >&2
+	printf '   - %s\n' "$(printf '%s\n' "${violacoes[@]}" | sort -u)" >&2
+	printf '%s\n' \
+		"" \
+		"Para publicar só os mecanismos, use:" \
+		"   .agents/scripts/sincronizar-mecanismos.sh \"mensagem\"" >&2
+	exit 1
+fi
+
+exit 0
