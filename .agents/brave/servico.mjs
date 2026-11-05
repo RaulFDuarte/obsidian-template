@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Liga a extensão às notas. Só a extensão (origem fixa) pode conectar: páginas web também alcançam localhost.
+import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -33,6 +34,30 @@ fs.mkdirSync(path.dirname(ESTADO), { recursive: true });
 const ler = (f, d = "") => { try { return fs.readFileSync(f, "utf8"); } catch { return d; } };
 const lerEstado = () => { try { return JSON.parse(fs.readFileSync(ESTADO, "utf8")); } catch { return { grupos: {}, soltas: { itens: [] }, avisos: [] }; } };
 const novoId = () => crypto.randomUUID().slice(0, 8);
+
+const falhasInterface = [];
+const esperaAbrir = new Map(); // título > quando pode tentar de novo
+
+function interface_(acao, titulo) {
+  return new Promise((ok) => {
+    execFile("python3", ["-W", "ignore", path.join(AQUI, "interface.py"), acao, titulo], { timeout: 30000 }, (erro, saida) => {
+      try { ok(JSON.parse(saida)); } catch { ok({ ok: false, motivo: erro?.message ?? "sem resposta" }); }
+    });
+  });
+}
+
+async function acionarInterface(plano) {
+  for (const titulo of plano.fecharUi) {
+    await new Promise((r) => setTimeout(r, 5000)); // a aba criada precisa chegar a carregar para entrar no grupo salvo
+    const r = await interface_("fechar", titulo);
+    if (!r.ok) falhasInterface.push(`Brave: não consegui fechar o grupo "${titulo}" depois de editá-lo (${r.motivo}).`);
+  }
+  const titulo = plano.abrir[0]; // um por vez, para mexer o mínimo na janela
+  if (!titulo) return;
+  const r = await interface_("abrir", titulo);
+  esperaAbrir.set(titulo, Date.now() + (r.ok ? 15000 : 600000));
+  if (!r.ok) falhasInterface.push(`Brave: edição do grupo fechado "${titulo}" continua pendente (${r.motivo}).`);
+}
 
 let conexao = null, snap = null, rodando = false, pendente = false, seq = 0;
 const esperando = new Map();
@@ -69,7 +94,11 @@ async function ciclo() {
     const estado = lerEstado();
     const loja = await lerLoja(PERFIL);
     const projetos = ler(PROJETOS);
-    const plano = planejar({ snap, loja, notas, soltas, estado, novoId, statusTarefa: (n) => statusTarefa(projetos, n) });
+    const plano = planejar({
+      snap, loja, notas, soltas, estado, novoId,
+      statusTarefa: (n) => statusTarefa(projetos, n),
+      podeAbrir: (t) => Date.now() >= (esperaAbrir.get(t) ?? 0),
+    });
 
     const avisos = [...plano.avisos];
     if (plano.comando) {
@@ -95,7 +124,7 @@ async function ciclo() {
     p = adicionarTarefas(p, REL, plano.novasTarefas);
     if (p !== projetos) gravar(PROJETOS, p);
 
-    const fila = [...(estado.avisos ?? []), ...avisos];
+    const fila = [...(estado.avisos ?? []), ...avisos, ...falhasInterface.splice(0)];
     let restantes = fila;
     if (fila.length) {
       const c = acrescentarCaixa(ler(CAIXA), fila);
@@ -103,6 +132,7 @@ async function ciclo() {
     }
     const novo = { ...plano.novoEstado, avisos: restantes };
     if (JSON.stringify(novo) !== JSON.stringify(estado)) gravar(ESTADO, JSON.stringify(novo));
+    await acionarInterface(plano);
     console.log(`ciclo: ${snap.tabs.length} abas, ${snap.groups.length} grupos abertos, ${loja?.length ?? "?"} no Sync, comando=${!!plano.comando}, ${plano.grava.length} notas`);
   } catch (e) {
     console.error("ciclo falhou:", e);

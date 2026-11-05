@@ -37,14 +37,14 @@ function ligarServico() {
 const desligarServico = async () => { srv.kill(); await sleep(500); };
 
 let ev = null;
-async function abrir(restaurar) {
+async function abrir(restaurar, comInterface = true) {
   const pref = `${PROF}/Default/Preferences`;
   if (fs.existsSync(pref)) {
     const j = JSON.parse(fs.readFileSync(pref, "utf8"));
     j.session = { ...j.session, restore_on_startup: restaurar ? 1 : 5 };
     fs.writeFileSync(pref, JSON.stringify(j));
   }
-  spawn("/snap/bin/brave", [`--user-data-dir=${PROF}`, `--load-extension=${EXT}`, `--disable-extensions-except=${EXT}`, `--remote-debugging-port=${CDP}`, "--no-first-run", "--disable-session-crashed-bubble"], { stdio: "ignore", detached: true }).unref();
+  spawn("/snap/bin/brave", [`--user-data-dir=${PROF}`, `--load-extension=${EXT}`, `--disable-extensions-except=${EXT}`, `--remote-debugging-port=${CDP}`, "--no-first-run", "--disable-session-crashed-bubble", ...(comInterface ? ["--force-renderer-accessibility=form-controls"] : [])], { stdio: "ignore", detached: true }).unref();
   let sw;
   for (let i = 0; i < 60 && !sw; i++) {
     await sleep(1000);
@@ -235,14 +235,48 @@ try {
   await sleep(25000);
   await espera("grupos ficam fechados na API", async () => (await estado()).grupos.length === 0);
   await espera("nota vira fechada", () => nota("Offline")?.includes("estado: fechado"), 30000);
-  await espera("aviso de abrir à mão na Caixa", () => fs.readFileSync(CAIXA, "utf8").includes("Offline"));
   const lojaF = await lerLoja(`${PROF}/Default`);
   await estavel("não recria grupo fechado", async () => (await estado()).grupos.length === 0, 8000);
   const cor = lojaF.find((g) => g.titulo === "Concluir")?.cor;
   if (cor === "green") console.log("ok   mapa de cores do Sync"); else { falhas++; console.log(`FALHA cor do Sync: ${cor}`); }
+  // Editar grupo fechado: abre o original, aplica, fecha, sem duplicar
+  const guia = (t) => lojaF.find((g) => g.titulo === t)?.guid;
+  const noSync = async (t) => (await lerLoja(`${PROF}/Default`))?.find((g) => g.titulo === t);
+  const total = lojaF.length;
   editar("Offline", (t) => t + `- ${U("pendente")}\n`);
-  await sleep(6000);
-  if ((await estado()).grupos.length === 0 && nota("Offline").includes(U("pendente"))) console.log("ok   edição em nota fechada fica pendente"); else { falhas++; console.log("FALHA edição em nota fechada"); }
+  await espera("linha em nota fechada chega ao grupo salvo", async () => (await noSync("Offline"))?.itens.some((i) => i.url === U("pendente")), 60000);
+  await espera("grupo volta a fechar", async () => (await estado()).grupos.length === 0, 30000);
+  if ((await noSync("Offline"))?.guid === guia("Offline")) console.log("ok   mesma entrada salva"); else { falhas++; console.log("FALHA entrada trocada"); }
+  await espera("nota continua fechada", () => nota("Offline")?.includes("estado: fechado"), 30000);
+  editar("Offline", (t) => t.split("\n").filter((l) => !l.includes(U("o2"))).join("\n"));
+  await espera("remover linha de nota fechada", async () => { const g = await noSync("Offline"); return g && !g.itens.some((i) => i.url === U("o2")); }, 60000);
+  await espera("e fecha de novo", async () => (await estado()).grupos.length === 0, 30000);
+  await sleep(3000);
+  editar("Concluir", (t) => t.replace("cor: green", "cor: red"));
+  await espera("cor em nota fechada", async () => (await noSync("Concluir"))?.cor === "red", 60000);
+  await espera("fecha depois da cor", async () => (await estado()).grupos.length === 0, 30000);
+  await sleep(3000);
+  fs.renameSync(`${NOTAS}/Concluir.md`, `${NOTAS}/Concluir novo.md`);
+  await espera("renomear nota fechada", async () => !!(await noSync("Concluir novo")), 60000);
+  await espera("fecha depois de renomear", async () => (await estado()).grupos.length === 0, 30000);
+  await sleep(3000);
+  fs.writeFileSync(PROJ, fs.readFileSync(PROJ, "utf8").replace(/- \[ \] (\[\[[^\]]*Criado na nota)/, "- [x] $1"));
+  if (!fs.readFileSync(PROJ, "utf8").includes("- [x] [[Prática/Tarefas/Brave/Criado na nota")) { falhas++; console.log("FALHA preparar tarefa"); }
+  await espera("concluir tarefa apaga grupo fechado", async () => !(await noSync("Criado na nota")), 60000);
+  await sleep(3000);
+  fs.unlinkSync(`${NOTAS}/Vazia.md`);
+  await espera("apagar nota apaga grupo fechado", async () => !(await noSync("Vazia")), 60000);
+  await espera("nada ficou aberto", async () => (await estado()).grupos.length === 0, 30000);
+  const semDup = (await lerLoja(`${PROF}/Default`)).length;
+  if (semDup === total - 2) console.log(`ok   nenhuma duplicata (${semDup})`); else { falhas++; console.log(`FALHA Sync foi de ${total} para ${semDup}`); }
+
+  // Sem a flag: nada se perde
+  await fechar();
+  await abrir(false, false);
+  await sleep(25000);
+  editar("Offline", (t) => t + `- ${U("sem-flag")}\n`);
+  await espera("sem flag, avisa na Caixa", () => fs.readFileSync(CAIXA, "utf8").includes('"Offline" continua pendente'), 30000);
+  if (nota("Offline").includes(U("sem-flag")) && (await estado()).grupos.length === 0) console.log("ok   sem flag, edição fica na nota"); else { falhas++; console.log("FALHA sem flag"); }
 
   // Grupo que aparece só no Sync (como os criados no celular)
   srv.kill(); await sleep(500);

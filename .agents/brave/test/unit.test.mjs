@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mesclar, nomeArquivo } from "../modelo.mjs";
+import { mesclar, nomeArquivo, planejar } from "../modelo.mjs";
 import { acrescentarCaixa, adicionarTarefas, escreverNota, lerNota, renomearNaTarefa, statusTarefa } from "../notas.mjs";
 
 const i = (...u) => u.map((url) => ({ url, titulo: url }));
@@ -61,4 +61,40 @@ test("tarefa: adicionar na seção e renomear", () => {
 test("caixa: respeita seção e processamento", () => {
   assert.equal(acrescentarCaixa("---\nprocessar-inbox: idle\n---\n## 🗂️ Para categorizar\n- a\n\n", ["b"]), "---\nprocessar-inbox: idle\n---\n## 🗂️ Para categorizar\n- a\n- b\n\n");
   assert.equal(acrescentarCaixa("---\nprocessar-inbox: rodando\n---\n", ["b"]), null);
+});
+
+const fechado = (over = {}) => {
+  const b = { arquivo: "G", titulo: "G", cor: "red", estado: "fechado", itens: i("a"), groupId: null, guid: "g1" };
+  return planejar({
+    snap: { tabs: [{ id: 1, url: "x", titulo: "x", grupo: -1, janela: 1, indice: 0, fixada: false }], groups: [] },
+    loja: [{ guid: "g1", titulo: "G", cor: "red", itens: i("a") }],
+    notas: [{ id: "n", arquivo: "G", cor: "red", estado: "fechado", itens: i("a"), resto: "" }],
+    soltas: { itens: i("x"), resto: "" }, estado: { grupos: { n: b }, soltas: { itens: i("x") } },
+    statusTarefa: () => " ", novoId: () => "z", ...over,
+  });
+};
+test("grupo fechado sem mudança não abre", () => assert.deepEqual(fechado().abrir, []));
+test("linha nova em nota fechada abre", () => {
+  const r = fechado({ notas: [{ id: "n", arquivo: "G", cor: "red", estado: "fechado", itens: i("a", "b"), resto: "" }] });
+  assert.deepEqual(r.abrir, ["G"]);
+  assert.equal(r.novoEstado.grupos.n.fecharDepois, true);
+  assert.deepEqual(r.novoEstado.grupos.n.itens.map((x) => x.url), ["a"]);
+  assert.deepEqual(r.grava[0].itens.map((x) => x.url), ["a", "b"]);
+});
+test("nomes repetidos não abrem e avisam", () => {
+  const l = { guid: "g2", titulo: "G", cor: "", itens: i("q") };
+  const r = fechado({ loja: [{ guid: "g1", titulo: "G", cor: "red", itens: i("a") }, l], notas: [{ id: "n", arquivo: "G", cor: "red", estado: "fechado", itens: i("a", "b"), resto: "" }] });
+  assert.deepEqual(r.abrir, []);
+  assert.ok(r.avisos.some((a) => a.includes("mais de um grupo")));
+});
+test("em espera não abre, mas mantém a nota", () => {
+  const r = fechado({ podeAbrir: () => false, notas: [{ id: "n", arquivo: "G", cor: "red", estado: "fechado", itens: i("a", "b"), resto: "" }] });
+  assert.deepEqual(r.abrir, []);
+  assert.deepEqual(r.grava[0].itens.map((x) => x.url), ["a", "b"]);
+});
+test("nota renomeada e fechada preserva a diferença até aplicar", () => {
+  const r = fechado({ notas: [{ id: "n", arquivo: "H", cor: "red", estado: "fechado", itens: i("a"), resto: "" }] });
+  assert.deepEqual(r.abrir, ["G"]);
+  assert.equal(r.novoEstado.grupos.n.arquivo, "G");
+  assert.equal(r.grava[0].arquivo, "H");
 });

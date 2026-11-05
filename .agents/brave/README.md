@@ -7,6 +7,7 @@ Cada grupo de abas do Brave vira uma nota em `Prática/Tarefas/Brave/` e uma tar
 1. `.agents/brave/instalar.sh` (dependências e serviço de usuário systemd)
 2. `brave://extensions` > Modo do desenvolvedor > Carregar sem compactação > `.agents/brave/extension`
 3. `brave://settings/getStarted` > **Continuar de onde parou**. Sem isso, todo grupo fecha ao reiniciar.
+4. Para editar grupos fechados, inicie o Brave com `--force-renderer-accessibility=form-controls`. No GNOME: copie `brave_brave.desktop` (no snap, em `/var/lib/snapd/desktop/applications/`) para `~/.local/share/applications/` e acrescente a flag às linhas `Exec=`. Requer `python3-gi` e interface em pt-BR.
 
 Log: `journalctl --user -u flow-brave -f`. Testes: `npm test` e `npm run e2e` (abre um Brave isolado).
 
@@ -22,12 +23,16 @@ Log: `journalctl --user -u flow-brave -f`. Testes: `npm test` e `npm run e2e` (a
 | Conclui ou cancela a tarefa | Apaga o grupo (também no Sync); a nota fica como registro |
 | Reabre a tarefa | Recria o grupo |
 | Clica no link da nota, no PC | Foca a aba já aberta em vez de duplicar |
+| Edita, renomeia ou apaga a nota de um grupo fechado, ou conclui a tarefa dele | O grupo abre, a mudança é aplicada e ele fecha de novo (ou é apagado) |
 
 Outras linhas de texto na nota são preservadas. Em `_Soltas_`, abas fixadas ficam de fora, e a seção 📱 é só leitura: mostra as abas do celular.
 
 ## Limites
 
-- A API de extensão não enxerga grupos fechados e não consegue reabri-los sem criar outro grupo salvo. Eles são lidos do banco do Sync (formato interno do Chromium, só em cópia, nunca escrito) e a nota fica `estado: fechado`, com aviso na Caixa para abrir à mão. Edições na nota valem quando o grupo abrir. Se a leitura falhar, nada é dado como apagado.
+- A API de extensão não enxerga grupos fechados e, se os recriasse, duplicaria a entrada salva. Por isso eles são lidos do banco do Sync (formato interno do Chromium, só em cópia, nunca escrito) e abertos e fechados pelos botões do próprio Brave, por acessibilidade (`interface.py`). Enquanto o grupo abre, a aba ativa da janela muda por alguns segundos.
+- Esses botões dependem dos textos da interface em pt-BR. Se a automação falhar, a edição continua na nota, com aviso na Caixa, e é tentada de novo a cada 10 minutos.
+- Grupos fechados com o mesmo título não são editados: o botão só mostra o título. Há um aviso na Caixa para renomear.
+- Se a leitura do banco falhar, nada é dado como apagado.
 - Grupos sem nome são ignorados até ganharem nome.
 - Grupo renomeado com o PC desligado aparece como grupo novo.
 - Mudanças no navegador exigem o Brave aberto no PC; as do celular chegam pelo Sync ou pelo obsidian-git.

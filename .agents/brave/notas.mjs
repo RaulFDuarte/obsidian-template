@@ -21,7 +21,7 @@ export function lerNota(texto, arquivo) {
   corpo = corpo.split(MARCA_CELULAR)[0];
   const resto = [];
   for (const linha of corpo.split("\n")) {
-    if (linha.startsWith("> [!warning] Grupo fechado")) continue;
+    if (/^> \[!\w+\] Grupo fechado/.test(linha)) continue;
     const m = linha.match(LINK);
     if (m) { nota.itens.push({ titulo: des(m[1]), url: des(m[2]) }); continue; }
     const n = linha.match(NUA);
@@ -37,7 +37,7 @@ export function escreverNota(n, celular = []) {
   if (n.cor) fm.push(`cor: ${n.cor}`);
   if (n.estado) fm.push(`estado: ${n.estado}`);
   const partes = [`---\n${fm.join("\n")}\n---`];
-  if (n.estado === "fechado") partes.push("> [!warning] Grupo fechado neste PC. Abra pelo menu do Brave (Grupos de abas); edições aqui valem quando ele abrir.");
+  if (n.estado === "fechado") partes.push("> [!info] Grupo fechado neste PC. Edições aqui abrem o grupo, são aplicadas e ele fecha de novo.");
   if (n.itens.length) partes.push(n.itens.map(linha).join("\n"));
   if (n.resto) partes.push(n.resto);
   if (celular.length) {

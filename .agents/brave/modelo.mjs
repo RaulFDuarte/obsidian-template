@@ -79,9 +79,21 @@ export function planejar(ent) {
   return seguro;
 }
 
-function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, respeitarRemocaoNota) {
+function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId, podeAbrir = () => true }, respeitarRemocaoNota) {
   const bases = estado.grupos ?? {};
-  const avisos = [], fechados = [], apagados = [], novasTarefas = [], renomeios = [];
+  const avisos = [], apagados = [], novasTarefas = [], renomeios = [];
+  const abrir = [], fecharUi = []; // grupos salvos só mudam com o grupo aberto: abre, aplica, fecha
+  let fechamentosFechados = 0;
+  const contagem = new Map();
+  for (const g of loja ?? []) contagem.set(g.titulo, (contagem.get(g.titulo) ?? 0) + 1);
+  // O botão do Brave só mostra o título: com nomes repetidos não há como saber qual acionar.
+  const repetido = (titulo) => (contagem.get(titulo) ?? 0) > 1;
+  const pedirAbertura = (titulo) => {
+    if (repetido(titulo)) { avisos.push(`Brave: há mais de um grupo "${titulo}"; renomeie um deles para eu conseguir editá-lo fechado.`); return false; }
+    if (!podeAbrir(titulo)) return false;
+    abrir.push(titulo);
+    return true;
+  };
   const comandoGrupos = [], grava = [];
   const novoEstado = { grupos: {}, soltas: { itens: [] } };
   const usados = new Set(notas.map((n) => n.arquivo.toLowerCase()));
@@ -132,14 +144,14 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, resp
       novoEstado.grupos[nota.id] = {
         arquivo, titulo, cor, estado: estadoNota, itens: semTab(extra.baseItens ?? itens),
         groupId: extra.groupId ?? null, ...(guid ? { guid } : {}),
-        ...(extra.avisado ? { avisado: true } : {}),
+        ...extra.sobre,
       };
       grava.push({ ...nota, arquivo, cor, estado: estadoNota, itens: semTab(itens) });
     };
 
     if (concluida) {
       if (g) fechamentosConcluidos.push(...doGrupo(g.id).map((t) => t.tabId));
-      else if (l) avisos.push(`"${tituloNota}" foi concluída, mas o grupo está fechado no Brave e só pode ser apagado à mão.`);
+      else if (l) pedirAbertura(l.titulo); // aberto, o próximo ciclo apaga
       return salvar("concluido", itensNota);
     }
     if (g) {
@@ -149,14 +161,21 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, resp
       const titulo = notaRenomeada ? tituloNota : g.titulo;
       const corMudouNota = nota.cor && nota.cor !== (base?.cor ?? nota.cor);
       const cor = corMudouNota ? nota.cor : g.cor;
-      pendencias.push({ grupoId: g.id, nav, itens: m.itens, titulo, cor, tituloAtual: g.titulo, corAtual: g.cor, nota, base });
-      return salvar("aberto", m.itens, { titulo, cor, groupId: g.id });
+      pendencias.push({ grupoId: g.id, nav, itens: m.itens, titulo, cor, tituloAtual: g.titulo, corAtual: g.cor, nota, base, fecharDepois: !!base?.fecharDepois });
+      return salvar("aberto", m.itens, { titulo, cor, groupId: g.id, sobre: base?.fecharDepois ? { fecharDepois: true } : {} });
     }
     if (l) {
-      // Fechado no PC: a nota acompanha o Sync; edições esperam a reabertura (base = o que o Sync diz).
-      const m = mesclar(base?.itens ?? [], l.itens, itensNota, { respeitarRemocaoNota: true });
-      if (!base?.avisado) fechados.push(nota.arquivo);
-      return salvar("fechado", m.itens, { titulo: l.titulo, cor: l.cor || nota.cor, baseItens: l.itens, avisado: true });
+      // Fechado no PC: a nota acompanha o Sync. Se ela tem algo a mais, o grupo abre para receber a mudança;
+      // a base fica no que o Sync diz para o ramo acima enxergar a diferença.
+      const m = mesclar(base?.itens ?? [], l.itens, itensNota, { respeitarRemocaoNota });
+      const seq = (x) => x.map((i) => i.url).join("\n");
+      const corNota = !!base && !!nota.cor && nota.cor !== base.cor;
+      const pendente = !!base && (seq(m.itens) !== seq(l.itens) || notaRenomeada || corNota);
+      const fecharDepois = pendente && pedirAbertura(l.titulo);
+      return salvar("fechado", m.itens, {
+        titulo: l.titulo, cor: corNota ? nota.cor : l.cor || nota.cor, baseItens: l.itens,
+        sobre: { ...(notaRenomeada ? { arquivo: base.arquivo } : {}), ...(corNota ? { cor: base.cor } : {}), ...(fecharDepois ? { fecharDepois: true } : {}) },
+      });
     }
     // Linha nova em nota de grupo apagado é pedido para recriar.
     const reativada = nota.estado === "apagado" && !!base && itensNota.length > 0
@@ -200,7 +219,15 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, resp
     }
     const g = tomarG(base);
     if (g) pendencias.push({ grupoId: g.id, nav: doGrupo(g.id), itens: [], titulo: g.titulo, cor: g.cor, tituloAtual: g.titulo, corAtual: g.cor, removida: true });
-    else if (tomarL(base)) novoEstado.grupos[id] = { ...base, ignorada: true };
+    else {
+      const l = tomarL(base);
+      if (l && repetido(l.titulo)) novoEstado.grupos[id] = { ...base, ignorada: true };
+      else if (l) { // abre agora, o próximo ciclo apaga
+        fechamentosFechados += l.itens.length;
+        novoEstado.grupos[id] = base;
+        pedirAbertura(l.titulo);
+      }
+    }
   }
 
   // Grupos novos no navegador e no Sync (ex.: criados no celular).
@@ -217,10 +244,9 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, resp
   for (const l of [...lLivres.values()]) {
     if (!l.titulo) continue;
     const arquivo = nomeArquivo(l.titulo, usados), id = novoId();
-    novoEstado.grupos[id] = { arquivo, titulo: l.titulo, cor: l.cor, estado: "fechado", itens: l.itens, groupId: null, guid: l.guid, avisado: true };
+    novoEstado.grupos[id] = { arquivo, titulo: l.titulo, cor: l.cor, estado: "fechado", itens: l.itens, groupId: null, guid: l.guid };
     grava.push({ id, arquivo, cor: l.cor, estado: "fechado", itens: l.itens, resto: "" });
     novasTarefas.push(arquivo);
-    fechados.push(arquivo);
   }
 
   // Abas soltas.
@@ -254,7 +280,10 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, resp
     if (p.removida || !p.itens.length) continue;
     const atual = p.nav.map((t) => t.tabId).join();
     const desejado = p.itens.map((t) => t.tabId ?? "?").join();
-    if (p.grupoId != null && atual === desejado && p.titulo === p.tituloAtual && p.cor === p.corAtual) continue;
+    if (p.grupoId != null && atual === desejado && p.titulo === p.tituloAtual && p.cor === p.corAtual) {
+      if (p.fecharDepois) fecharUi.push(p.titulo); // mudança já aplicada: volta a ficar fechado
+      continue;
+    }
     comandoGrupos.push({ groupId: p.grupoId, titulo: p.titulo, cor: p.cor, itens: p.itens.map((i) => (i.tabId != null ? { tabId: i.tabId } : { url: i.url })) });
   }
   const soltar = mSoltas.itens.filter((i) => i.tabId != null && grupoDe.get(i.tabId) !== -1).map((i) => i.tabId);
@@ -264,13 +293,11 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId }, resp
   const comando = comandoGrupos.length || soltar.length || criar.length || fecharTabs.length
     ? { grupos: comandoGrupos, soltas: { soltar, criar }, fechar: fecharTabs } : null;
 
-  for (const a of fechados.length ? [fechados] : [])
-    avisos.push(`Brave: abra no PC ${a.length > 1 ? `os ${a.length} grupos fechados` : "o grupo fechado"} (menu do Brave, Grupos de abas): ${a.map((x) => `"${x}"`).join(", ")}.`);
   for (const a of apagados) avisos.push(`Brave: o grupo "${a}" não existe mais; mantive a nota como registro.`);
 
   return {
-    comando, grava, renomeios, novasTarefas, avisos, novoEstado,
+    comando, grava, renomeios, novasTarefas, avisos, novoEstado, abrir, fecharUi,
     soltas: { ...(soltas ?? { resto: "" }), itens: semTab(mSoltas.itens) },
-    fechamentosPorNota: pool.length,
+    fechamentosPorNota: pool.length + fechamentosFechados,
   };
 }
