@@ -12,6 +12,12 @@ cssclasses:
 // - Folga: dias de 📅 menos ⏳; negativo = atrasada em relação ao prazo
 // - Drag & drop: move a data do item arrastado, editando a linha no arquivo,
 //   e define a posição dele no dia (ordem salva em .ordem-do-dia.json via 🆔)
+// - Seleção múltipla: arraste no fundo (célula/lista) para desenhar uma caixa de
+//   seleção (Alt+arrastar começa a caixa mesmo sobre uma tarefa); Shift/Ctrl+clique
+//   alterna uma tarefa; Shift/Ctrl+caixa soma à seleção; Esc ou "✕ Limpar" limpa.
+//   Arrastar uma tarefa selecionada move todas, mantendo o deslocamento relativo
+//   em dias úteis (na visão dia, reordena em lote). A seleção sobrevive à troca
+//   de mês/semana/dia.
 // - Duplo clique: abre a tarefa na origem (Ctrl = nova aba)
 // - Botão direito: abre o modal "Edit task" do plugin Tasks
 // ---------------------------------------------------------------------------
@@ -103,6 +109,9 @@ const chaveHoje = chaveDe(hoje);
 const stateKey = 'calendario-tarefas-estado-v3';
 if (!window[stateKey]) window[stateKey] = { visao: 'mes', ref: chaveHoje };
 const estado = window[stateKey];
+// Seleção múltipla: chaveItem -> texto da linha (sem 🆔) para detectar mudanças.
+// Vive em `window`, então sobrevive à navegação e aos re-renders.
+estado.selecao ??= new Map();
 
 function avisar(msg) {
     if (typeof Notice !== 'undefined') new Notice(msg);
@@ -126,7 +135,7 @@ if (!page) dv.paragraph(`⚠️ Não encontrei o arquivo \`${SOURCE_PAGE}\`.`);
 
 const todas = page ? page.file.tasks.array() : [];
 const tarefaPorLinha = new Map(todas.map((t) => [t.line, t]));
-const porDia = {}; // 'YYYY-MM-DD' -> [tarefa]
+let porDia = {}; // 'YYYY-MM-DD' -> [tarefa]
 
 function registrar(task, tipo, chave, folga, prazo) {
     const pai = task.parent !== undefined && task.parent !== null ? tarefaPorLinha.get(task.parent) : null;
@@ -156,20 +165,31 @@ for (const task of todas) {
 // --- Ordem manual por dia ---------------------------------------------------
 // Arquivo { 'YYYY-MM-DD': [id, ...] } com a ordem definida arrastando as tarefas.
 // A chave é o dia da célula (o dia útil guarda também a ordem dos dias de folga seguintes).
-let ordemPorDia = {};
-try {
-    if (await app.vault.adapter.exists(ARQ_ORDEM)) {
-        ordemPorDia = JSON.parse(await app.vault.adapter.read(ARQ_ORDEM));
+// Fica em cache na sessão (o bloco reexecuta a cada mudança do vault; reler o
+// arquivo toda vez é desperdício e, após um drop, poderia ler a versão antiga).
+let ordemPorDia = estado.ordem;
+if (!ordemPorDia) {
+    ordemPorDia = {};
+    try {
+        if (await app.vault.adapter.exists(ARQ_ORDEM)) {
+            ordemPorDia = JSON.parse(await app.vault.adapter.read(ARQ_ORDEM));
+        }
+    } catch (e) {
+        avisar('⚠️ Não consegui ler a ordem do dia; usando a ordem padrão.');
     }
-} catch (e) {
-    avisar('⚠️ Não consegui ler a ordem do dia; usando a ordem padrão.');
+    estado.ordem = ordemPorDia;
 }
 
-async function salvarOrdem() {
+// Escritas em fila: nunca duas ao mesmo tempo, e a última sempre vence.
+function salvarOrdem() {
     // Descarta dias com mais de 30 dias para o arquivo não crescer para sempre.
     const limite = chaveDe(somarDias(hoje, -30));
     for (const k of Object.keys(ordemPorDia)) if (k < limite) delete ordemPorDia[k];
-    await app.vault.adapter.write(ARQ_ORDEM, JSON.stringify(ordemPorDia, null, 2));
+    const json = JSON.stringify(ordemPorDia, null, 2);
+    estado.escrita = (estado.escrita ?? Promise.resolve())
+        .then(() => app.vault.adapter.write(ARQ_ORDEM, json))
+        .catch(() => avisar('⚠️ Não consegui salvar a ordem do dia.'));
+    return estado.escrita;
 }
 
 const gerarId = () => Math.random().toString(36).slice(2, 8);
@@ -179,8 +199,8 @@ const gerarId = () => Math.random().toString(36).slice(2, 8);
 const pesoPrioridade = (p) => (p ? PRIORIDADES.indexOf(p) : 2.5);
 const finalizada = (t) => (t.concluida || t.cancelada ? 1 : 0);
 function ordenar(lista, chaveCelula) {
-    const ordem = ordemPorDia[chaveCelula] || [];
-    const posicao = (t) => { const i = t.id ? ordem.indexOf(t.id) : -1; return i < 0 ? 1e9 : i; };
+    const posicoes = new Map((ordemPorDia[chaveCelula] || []).map((id, i) => [id, i]));
+    const posicao = (t) => (t.id && posicoes.has(t.id) ? posicoes.get(t.id) : 1e9);
     return lista.sort((a, b) =>
         finalizada(a) - finalizada(b)
         || posicao(a) - posicao(b)
@@ -220,6 +240,95 @@ const chaveItem = (t) => `${t.line}:${t.tipo}`;
 // Cópia serializável para o drag & drop.
 const paraArraste = (t) => JSON.stringify(t);
 
+// --- Seleção múltipla -------------------------------------------------------
+const semId = (s) => s.replace(/\s*🆔\s*[\w-]+/gu, '').trim();
+const dadosEl = new WeakMap(); // elemento do DOM -> tarefa
+let versaoScroll = 0; // sobe a cada rolagem; invalida retângulos medidos
+
+// Índices sobre `porDia`: por chave de item e por linha do arquivo.
+let itensPorChave = new Map();
+let itensPorLinha = new Map();
+function reindexar() {
+    itensPorChave = new Map();
+    itensPorLinha = new Map();
+    for (const lista of Object.values(porDia)) {
+        for (const t of lista) {
+            itensPorChave.set(chaveItem(t), t);
+            if (!itensPorLinha.has(t.line)) itensPorLinha.set(t.line, []);
+            itensPorLinha.get(t.line).push(t);
+        }
+    }
+}
+reindexar();
+
+// --- Atualização otimista ---------------------------------------------------
+// O Dataview só reexecuta o bloco ~2,5 s depois de gravar o arquivo. Para a tela
+// responder na hora, refletimos a mudança no estado local e redesenhamos já; a
+// reexecução posterior chega ao mesmo resultado.
+const clonarPorDia = () => Object.fromEntries(
+    Object.entries(porDia).map(([k, lista]) => [k, lista.map((t) => ({ ...t }))]));
+
+function aplicarLocal(mudados, novosIds) {
+    for (const [line, { id }] of Object.entries(novosIds)) {
+        for (const t of itensPorLinha.get(Number(line)) || []) { t.id = id; t.bruto = `${t.bruto} 🆔 ${id}`; }
+    }
+    const linhas = new Set();
+    for (const m of mudados) {
+        const emoji = EMOJI[m.tipo];
+        const itens = itensPorLinha.get(m.line) || [];
+        for (const t of itens) t.bruto = t.bruto.replace(`${emoji} ${m.chave}`, `${emoji} ${m.novaData}`);
+        const orig = itens.find((t) => t.tipo === m.tipo);
+        if (!orig) continue;
+        const lista = porDia[orig.chave];
+        const i = lista ? lista.indexOf(orig) : -1;
+        if (i >= 0) lista.splice(i, 1);
+        orig.chave = m.novaData;
+        (porDia[m.novaData] ??= []).push(orig);
+        linhas.add(m.line);
+    }
+    for (const line of linhas) {
+        const itens = itensPorLinha.get(line);
+        const ag = itens.find((t) => t.tipo === 'scheduled')?.chave;
+        const pr = itens.find((t) => t.tipo === 'due')?.chave || null;
+        const folga = ag && pr ? diferencaDias(ag, pr) : null;
+        for (const t of itens) { t.folga = folga; t.prazo = pr; }
+    }
+}
+
+// Descarta da seleção o que sumiu, fechou ou foi editado no arquivo.
+for (const [k, bruto] of [...estado.selecao]) {
+    const t = itensPorChave.get(k);
+    if (!t || finalizada(t) || semId(t.bruto) !== bruto) estado.selecao.delete(k);
+}
+
+// Itens selecionados (cópias); o arrastado entra com o próprio objeto.
+function loteDaSelecao(arrastado) {
+    const lote = [];
+    for (const k of estado.selecao.keys()) {
+        if (k === chaveItem(arrastado)) { lote.push(arrastado); continue; }
+        const base = itensPorChave.get(k);
+        if (base) lote.push({ ...base });
+    }
+    return lote;
+}
+
+// Dias úteis entre duas chaves de dia útil (negativo se `ate` vem antes de `de`).
+function uteisEntre(de, ate) {
+    let d = deChave(de);
+    const fim = deChave(ate);
+    const dir = fim >= d ? 1 : -1;
+    let n = 0;
+    while ((dir > 0 ? d < fim : d > fim) && Math.abs(n) < 5000) { d = proximoDiaUtil(d, dir); n += dir; }
+    return n;
+}
+// Anda `n` dias úteis a partir de uma chave de dia útil.
+function deslocarUteis(chave, n) {
+    let d = deChave(chave);
+    const dir = n < 0 ? -1 : 1;
+    for (let i = 0; i < Math.abs(n); i++) d = proximoDiaUtil(d, dir);
+    return chaveDe(d);
+}
+
 // --- Edição do arquivo ------------------------------------------------------
 // Corpo da linha sem o marcador "- [ ] ", para conferir se a linha ainda é a mesma.
 const corpo = (linha) => linha.replace(/^\s*[-*+]\s+\[.\]\s*/, '').trim();
@@ -229,22 +338,35 @@ const apiTasks = () => app.plugins.plugins['obsidian-tasks-plugin']?.apiV1;
 async function editarLinha(path, line, bruto, transformar) {
     const arquivo = app.vault.getAbstractFileByPath(path);
     if (!arquivo) { avisar('⚠️ Arquivo da tarefa não encontrado.'); return; }
-    let ok = false;
+    let novo = null;
     await app.vault.process(arquivo, (conteudo) => {
         const linhas = conteudo.split('\n');
         if (linhas[line] === undefined || corpo(linhas[line]) !== bruto) return conteudo;
         linhas[line] = transformar(linhas[line]); // pode virar 2 linhas em tarefas recorrentes
-        ok = true;
+        novo = linhas[line];
         return linhas.join('\n');
     });
-    if (!ok) avisar('⚠️ A tarefa mudou de lugar no arquivo. Nada foi alterado; aguarde o calendário atualizar.');
+    if (novo === null) avisar('⚠️ A tarefa mudou de lugar no arquivo. Nada foi alterado; aguarde o calendário atualizar.');
+    return novo; // texto novo da linha, ou null se nada mudou
 }
 
 // Conclui/reabre pelo plugin Tasks (respeita recorrência e ✅).
 async function alternarConclusao(path, line, bruto) {
     const api = apiTasks();
     if (!api?.executeToggleTaskDoneCommand) { avisar('⚠️ Plugin Tasks indisponível.'); return; }
-    await editarLinha(path, line, bruto, (linha) => api.executeToggleTaskDoneCommand(linha, path));
+    const novo = await editarLinha(path, line, bruto, (linha) => api.executeToggleTaskDoneCommand(linha, path));
+    // Reflete já na tela (exceto recorrentes, que viram 2 linhas e deslocam as demais).
+    const status = novo && !novo.includes('\n') ? novo.match(/^\s*[-*+]\s+\[(.)\]/)?.[1] : null;
+    const itens = itensPorLinha.get(line);
+    if (status && itens) {
+        for (const t of itens) {
+            t.concluida = status.toLowerCase() === 'x';
+            t.cancelada = status === '-';
+            t.bruto = corpo(novo);
+            if (finalizada(t)) estado.selecao.delete(chaveItem(t));
+        }
+        render();
+    }
 }
 
 // Abre o modal "Edit task" do plugin Tasks e grava o resultado na linha.
@@ -285,15 +407,38 @@ async function abrirNaOrigem(e, path, line) {
     await leaf.openFile(arquivo, { active: true, eState: { line } });
 }
 
-// Solta `arrastado` na célula `destino`, na posição definida por `chavesNaOrdem`
-// (lista de chaveItem das tarefas abertas da célula, já com o arrastado inserido).
-async function soltar(arrastado, destino, dia, chavesNaOrdem) {
-    const mudaData = arrastado.celula !== destino;
-    if (mudaData && arrastado.tipo === 'due' && !confirm(
-        `📅 é prazo fixo.\nMover "${arrastado.texto}" de ${arrastado.chave} para ${destino}?`)) return;
+// Solta `arrastado` na célula `destino`. Se ele faz parte da seleção, todo o lote
+// vai junto, mantendo o deslocamento relativo em dias úteis: o arrastado vai para
+// `destino` e os demais andam o mesmo número de dias úteis.
+// `posicionar(excluir)` devolve as chaves das tarefas abertas da célula (sem as
+// excluídas) e o índice em que o bloco solto entra.
+async function soltar(arrastado, destino, dia, posicionar) {
+    const lote = estado.selecao.has(chaveItem(arrastado)) ? loteDaSelecao(arrastado) : [arrastado];
+    const n = uteisEntre(arrastado.celula, destino);
+    for (const t of lote) {
+        const ehAncora = t === arrastado;
+        t.origem = ehAncora ? t.celula : chaveDe(diaUtil(deChave(t.chave)));
+        t.muda = ehAncora ? t.celula !== destino : n !== 0;
+        t.novaData = ehAncora ? destino : (t.muda ? deslocarUteis(t.origem, n) : t.chave);
+        t.celulaFinal = t.muda ? chaveDe(diaUtil(deChave(t.novaData))) : t.origem;
+    }
+    const mudados = lote.filter((t) => t.muda);
+
+    const prazos = mudados.filter((t) => t.tipo === 'due');
+    if (prazos.length && !confirm(prazos.length === 1
+        ? `📅 é prazo fixo.\nMover "${prazos[0].texto}" de ${prazos[0].chave} para ${prazos[0].novaData}?`
+        : `📅 ${prazos.length} prazos fixos serão movidos junto com a seleção.\nContinuar?`)) return;
+
+    // Bloco que entra na célula de destino, na ordem em que aparece na tela.
+    const ordemDom = new Map([...raiz.querySelectorAll('[data-item]')].map((el, i) => [el.dataset.item, i]));
+    const posDom = (t) => ordemDom.get(chaveItem(t)) ?? 1e9;
+    const bloco = lote.filter((t) => t.celulaFinal === destino).sort((a, b) => posDom(a) - posDom(b));
+    const { chaves, indice } = posicionar(new Set(lote.map(chaveItem)));
+    const chavesNaOrdem = [...chaves];
+    chavesNaOrdem.splice(indice, 0, ...bloco.map(chaveItem));
 
     const porChave = new Map(tarefasDoDia(dia).map((t) => [chaveItem(t), t]));
-    porChave.set(chaveItem(arrastado), arrastado);
+    for (const t of lote) porChave.set(chaveItem(t), t);
     const itens = chavesNaOrdem.map((k) => porChave.get(k)).filter(Boolean);
 
     // Garante um 🆔 por linha (scheduled e due da mesma linha compartilham).
@@ -306,24 +451,32 @@ async function soltar(arrastado, destino, dia, chavesNaOrdem) {
 
     // Salva a ordem antes de editar o Projetos: a edição re-renderiza o bloco.
     ordemPorDia[destino] = [...new Set(itens.map((t) => t.id))];
-    if (mudaData && ordemPorDia[arrastado.celula]) {
-        ordemPorDia[arrastado.celula] = ordemPorDia[arrastado.celula].filter((id) => id !== arrastado.id);
+    for (const t of mudados) {
+        if (t.id && ordemPorDia[t.origem]) ordemPorDia[t.origem] = ordemPorDia[t.origem].filter((id) => id !== t.id);
     }
-    await salvarOrdem();
+    const salvando = salvarOrdem(); // em paralelo com a edição do Projetos (a ordem já está em cache)
 
-    const precisaEditar = mudaData || Object.keys(novosIds).length > 0;
-    if (!precisaEditar) { render(); return; }
+    // Datas mudaram: a seleção antiga não vale mais.
+    if (mudados.length) estado.selecao.clear();
+
+    const precisaEditar = mudados.length > 0 || Object.keys(novosIds).length > 0;
+    if (!precisaEditar) { render(); await salvando; return; }
 
     const arquivo = app.vault.getAbstractFileByPath(SOURCE_PAGE);
     if (!arquivo) { avisar('⚠️ Arquivo das tarefas não encontrado.'); return; }
 
+    // Atualização otimista: redesenha agora; desfaz se a edição for recusada.
+    const copia = clonarPorDia();
+    aplicarLocal(mudados, novosIds);
+    render();
+
     let ok = true;
-    await app.vault.process(arquivo, (conteudo) => {
+    const editando = app.vault.process(arquivo, (conteudo) => {
         const linhas = conteudo.split('\n');
         // Só edita se cada linha ainda contém a data esperada (evita editar a linha errada).
         const confere = (t) => linhas[t.line] && linhas[t.line].includes(`${EMOJI[t.tipo]} ${t.chave}`);
         for (const { item } of Object.values(novosIds)) if (!confere(item)) ok = false;
-        if (mudaData && !confere(arrastado)) ok = false;
+        for (const t of mudados) if (!confere(t)) ok = false;
         if (!ok) return conteudo;
 
         for (const [line, { id }] of Object.entries(novosIds)) {
@@ -331,20 +484,36 @@ async function soltar(arrastado, destino, dia, chavesNaOrdem) {
         }
         // Reordenar dentro do dia útil não muda a data de tarefas dos dias de folga,
         // nem reordenar ⏳ atrasadas dentro de hoje.
-        if (mudaData) {
-            const emoji = EMOJI[arrastado.tipo];
-            linhas[arrastado.line] = linhas[arrastado.line]
-                .replace(`${emoji} ${arrastado.chave}`, `${emoji} ${destino}`);
+        for (const t of mudados) {
+            const emoji = EMOJI[t.tipo];
+            linhas[t.line] = linhas[t.line].replace(`${emoji} ${t.chave}`, `${emoji} ${t.novaData}`);
         }
         return linhas.join('\n');
     });
+    await Promise.all([salvando, editando]);
 
-    if (!ok) avisar('⚠️ A tarefa mudou de lugar no arquivo. Nada foi alterado; aguarde o calendário atualizar.');
-    else if (mudaData) avisar(`${EMOJI[arrastado.tipo]} ${arrastado.chave} → ${destino}`);
+    if (!ok) {
+        porDia = copia;
+        reindexar();
+        render();
+        avisar('⚠️ A tarefa mudou de lugar no arquivo. Nada foi alterado; aguarde o calendário atualizar.');
+    } else if (mudados.length === 1) avisar(`${EMOJI[mudados[0].tipo]} ${mudados[0].chave} → ${mudados[0].novaData}`);
+    else if (mudados.length > 1) avisar(`${mudados.length} tarefas movidas`);
 }
 
 // --- Renderização -----------------------------------------------------------
 const raiz = dv.container.createDiv({ cls: 'cal-raiz' });
+let infoSel = null; // contador e botão "Limpar" do cabeçalho (criados em render)
+let btnLimpar = null;
+
+// Atualiza só o destaque e o contador da seleção, sem redesenhar o calendário.
+function atualizarSelecao() {
+    marcar();
+    if (!infoSel) return;
+    const n = estado.selecao.size;
+    infoSel.setText(`${n} selecionada(s)`);
+    infoSel.hidden = btnLimpar.hidden = n === 0;
+}
 
 function botao(pai, texto, aoClicar, ativo = false) {
     const b = pai.createEl('button', { text: texto });
@@ -414,16 +583,35 @@ function ligarEventos(el, t) {
     el.addEventListener('dblclick', (e) => abrirNaOrigem(e, t.path, t.line));
     el.addEventListener('contextmenu', (e) => { e.preventDefault(); editarTarefa(t.path, t.line, t.bruto); });
 
-    // Tarefas fechadas não são arrastáveis.
+    // Tarefas fechadas não são arrastáveis nem selecionáveis.
     if (finalizada(t)) return;
     el.dataset.item = chaveItem(t);
+    dadosEl.set(el, t);
     el.draggable = true;
+    // Shift/Ctrl+clique alterna a tarefa na seleção.
+    el.addEventListener('click', (e) => {
+        if (!(e.shiftKey || e.ctrlKey || e.metaKey)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const k = chaveItem(t);
+        if (estado.selecao.has(k)) estado.selecao.delete(k);
+        else estado.selecao.set(k, semId(t.bruto));
+        atualizarSelecao();
+    });
     el.addEventListener('dragstart', (e) => {
+        if (e.altKey) { e.preventDefault(); return; } // Alt é a caixa de seleção
         e.dataTransfer.setData(DRAG_TYPE, paraArraste(t));
         e.dataTransfer.effectAllowed = 'move';
-        el.addClass('cal-arrastando');
+        const marcados = estado.selecao.has(chaveItem(t)) ? raiz.querySelectorAll('.cal-selecionado') : [el];
+        marcados.forEach((m) => m.addClass('cal-arrastando'));
     });
-    el.addEventListener('dragend', () => el.removeClass('cal-arrastando'));
+    el.addEventListener('dragend', () => {
+        raiz.querySelectorAll('.cal-arrastando').forEach((m) => m.removeClass('cal-arrastando'));
+        // Arraste cancelado (Esc / fora da página) não dispara dragleave: limpa marcas e medidas.
+        raiz.querySelectorAll('.cal-drop-alvo, .cal-drop-antes, .cal-drop-depois')
+            .forEach((m) => m.classList.remove('cal-drop-alvo', 'cal-drop-antes', 'cal-drop-depois'));
+        versaoScroll++;
+    });
 }
 
 function renderChip(celula, t) {
@@ -512,40 +700,62 @@ function renderItemDia(lista, t) {
 // Torna o container um alvo de drop: a posição vertical do cursor define onde a tarefa entra.
 function tornarAlvo(container, chave, dia) {
     const abertos = () => [...container.querySelectorAll(':scope > [data-item]:not(.cal-arrastando)')];
-    const indiceDrop = (y) => {
-        const itens = abertos();
-        const i = itens.findIndex((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; });
-        return i < 0 ? itens.length : i;
+    // Posições medidas uma vez por passagem do cursor (o layout não muda durante
+    // o arraste); recalculadas se houve rolagem.
+    let medidas = null, versao = -1;
+    const itens = () => {
+        if (!medidas || versao !== versaoScroll) {
+            medidas = abertos().map((el) => { const r = el.getBoundingClientRect(); return { el, meio: r.top + r.height / 2 }; });
+            versao = versaoScroll;
+        }
+        return medidas;
     };
-    const limparMarcas = () => container.querySelectorAll('.cal-drop-antes, .cal-drop-depois')
-        .forEach((c) => c.removeClass('cal-drop-antes', 'cal-drop-depois'));
+    const indiceDrop = (lista, y) => {
+        const i = lista.findIndex((c) => y < c.meio);
+        return i < 0 ? lista.length : i;
+    };
+    // Só uma marca de posição por vez; só mexe no DOM quando ela muda.
+    let marca = null;
+    const limparMarcas = () => { if (marca) { marca.el.classList.remove(marca.cls); marca = null; } };
+    const marcarDrop = (el, cls) => {
+        if (marca && marca.el === el && marca.cls === cls && el.classList.contains(cls)) return;
+        limparMarcas();
+        if (el) { el.classList.add(cls); marca = { el, cls }; }
+    };
+    const sair = () => {
+        container.classList.remove('cal-drop-alvo');
+        limparMarcas();
+        medidas = null;
+    };
 
     container.addEventListener('dragover', (e) => {
         if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        container.addClass('cal-drop-alvo');
-        limparMarcas();
-        const itens = abertos();
-        const i = indiceDrop(e.clientY);
-        if (i < itens.length) itens[i].addClass('cal-drop-antes');
-        else if (itens.length) itens[itens.length - 1].addClass('cal-drop-depois');
+        container.classList.add('cal-drop-alvo');
+        const lista = itens();
+        const i = indiceDrop(lista, e.clientY);
+        if (i < lista.length) marcarDrop(lista[i].el, 'cal-drop-antes');
+        else if (lista.length) marcarDrop(lista[lista.length - 1].el, 'cal-drop-depois');
+        else marcarDrop(null);
     });
     container.addEventListener('dragleave', (e) => {
         if (container.contains(e.relatedTarget)) return;
-        container.removeClass('cal-drop-alvo');
-        limparMarcas();
+        sair();
     });
+    const posicionar = (lista, y, excluir) => {
+        const restantes = lista.filter((c) => !excluir.has(c.el.dataset.item));
+        return { chaves: restantes.map((c) => c.el.dataset.item), indice: indiceDrop(restantes, y) };
+    };
     container.addEventListener('drop', async (e) => {
-        container.removeClass('cal-drop-alvo');
-        limparMarcas();
+        const lista = itens();
+        sair();
         const dados = e.dataTransfer.getData(DRAG_TYPE);
         if (!dados) return;
         e.preventDefault();
         const arrastado = JSON.parse(dados);
-        const chaves = abertos().map((c) => c.dataset.item).filter((k) => k !== chaveItem(arrastado));
-        chaves.splice(indiceDrop(e.clientY), 0, chaveItem(arrastado));
-        await soltar(arrastado, chave, dia, chaves);
+        const y = e.clientY;
+        await soltar(arrastado, chave, dia, (excluir) => posicionar(lista, y, excluir));
     });
 }
 
@@ -589,13 +799,15 @@ function render() {
     header.createEl('span', { text: titulo(ref, dias), cls: 'cal-titulo' });
     alvoNavegacao(botao(header, '▶', () => navegar(1)), 1);
     botao(header, 'Hoje', () => { estado.ref = chaveHoje; render(); });
+    infoSel = header.createSpan({ cls: 'cal-sel-info' });
+    btnLimpar = botao(header, '✕ Limpar', () => { estado.selecao.clear(); atualizarSelecao(); });
 
     const grupoVisao = header.createDiv({ cls: 'cal-toggle' });
     for (const [visao, rotulo] of [['mes', 'Mês'], ['semana', 'Semana'], ['dia', 'Dia']]) {
         botao(grupoVisao, rotulo, () => { estado.visao = visao; render(); }, estado.visao === visao);
     }
 
-    if (estado.visao === 'dia') { renderDia(dias[0]); return; }
+    if (estado.visao === 'dia') { renderDia(dias[0]); atualizarSelecao(); return; }
 
     // Grade.
     const grid = raiz.createDiv({ cls: 'cal-grid' });
@@ -604,6 +816,105 @@ function render() {
     else for (const i of colunas) grid.createDiv({ cls: 'cal-dow', text: siglasDias[i] });
 
     for (const dia of dias) renderCelula(grid, dia, ref.getMonth());
+    atualizarSelecao();
+}
+
+// Destaca as tarefas do conjunto de chaves (por padrão, a seleção atual).
+function marcar(conjunto = estado.selecao) {
+    raiz.querySelectorAll('[data-item]').forEach((el) => {
+        el.classList.toggle('cal-selecionado', conjunto.has(el.dataset.item));
+    });
+}
+
+// Caixa de seleção: arrastar no fundo (ou Alt+arrastar sobre uma tarefa).
+// Shift/Ctrl soma à seleção atual; sem modificador, substitui.
+raiz.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('button, input, .cal-header, .cal-num, .dia-filhos')) return;
+    if (!e.altKey && e.target.closest('.cal-task, .dia-item')) return;
+    e.preventDefault();
+    iniciarCaixa(e);
+});
+
+function iniciarCaixa(ini) {
+    const aditivo = ini.shiftKey || ini.ctrlKey || ini.metaKey;
+    const base = aditivo ? new Set(estado.selecao.keys()) : new Set();
+    let caixa = null;
+    let tocados = new Map(); // chaveItem -> tarefa
+    let ultimo = null;       // último mousemove
+    let quadro = 0;          // requestAnimationFrame pendente
+    let alvos = null, versao = -1; // retângulos medidos uma vez (e de novo se rolar)
+    let destacados = new Set(estado.selecao.keys()); // o que o DOM mostra agora
+
+    const medir = () => {
+        if (alvos && versao === versaoScroll) return;
+        alvos = [...raiz.querySelectorAll('[data-item]')]
+            .map((el) => ({ el, k: el.dataset.item, b: el.getBoundingClientRect() }));
+        versao = versaoScroll;
+    };
+    const atualizar = () => {
+        quadro = 0;
+        if (!ultimo) return;
+        if (!caixa) {
+            if (Math.hypot(ultimo.clientX - ini.clientX, ultimo.clientY - ini.clientY) < 4) return;
+            caixa = document.body.createDiv({ cls: 'cal-caixa' });
+        }
+        const esq = Math.min(ini.clientX, ultimo.clientX), dir = Math.max(ini.clientX, ultimo.clientX);
+        const topo = Math.min(ini.clientY, ultimo.clientY), baixo = Math.max(ini.clientY, ultimo.clientY);
+        Object.assign(caixa.style, {
+            left: `${esq}px`, top: `${topo}px`, width: `${dir - esq}px`, height: `${baixo - topo}px`,
+        });
+        medir();
+        tocados = new Map();
+        const novos = new Set(base);
+        for (const { el, k, b } of alvos) {
+            if (b.left < dir && b.right > esq && b.top < baixo && b.bottom > topo) {
+                tocados.set(k, dadosEl.get(el));
+                novos.add(k);
+            }
+        }
+        // Só mexe nos elementos cujo destaque mudou.
+        for (const { el, k } of alvos) {
+            const quer = novos.has(k);
+            if (quer !== destacados.has(k)) el.classList.toggle('cal-selecionado', quer);
+        }
+        destacados = novos;
+    };
+    const mover = (e) => {
+        ultimo = e;
+        if (!quadro) quadro = requestAnimationFrame(atualizar);
+    };
+    const fim = () => {
+        document.removeEventListener('mousemove', mover, true);
+        document.removeEventListener('mouseup', fim, true);
+        if (quadro) { cancelAnimationFrame(quadro); atualizar(); }
+        caixa?.remove();
+        if (!aditivo) estado.selecao.clear();
+        for (const [k, t] of tocados) if (t) estado.selecao.set(k, semId(t.bruto));
+        atualizarSelecao();
+    };
+    document.addEventListener('mousemove', mover, true);
+    document.addEventListener('mouseup', fim, true);
+}
+
+// Esc limpa a seleção. O bloco é reexecutado a cada mudança do Projetos, então
+// o listener anterior é removido para não acumular.
+const ESC = '__calSelecaoEsc';
+window[ESC]?.();
+{
+    const aoTeclar = (e) => {
+        if (e.key !== 'Escape' || !estado.selecao.size || !raiz.isConnected) return;
+        estado.selecao.clear();
+        atualizarSelecao();
+    };
+    // Qualquer rolagem invalida as medidas em cache (caixa de seleção e arraste).
+    const aoRolar = () => { versaoScroll++; };
+    document.addEventListener('keydown', aoTeclar);
+    document.addEventListener('scroll', aoRolar, { capture: true, passive: true });
+    window[ESC] = () => {
+        document.removeEventListener('keydown', aoTeclar);
+        document.removeEventListener('scroll', aoRolar, true);
+    };
 }
 
 render();

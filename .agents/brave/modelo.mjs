@@ -152,13 +152,14 @@ function passo({ snap, loja, notas, soltas, estado, statusTarefa, novoId, podeAb
         groupId: extra.groupId ?? null, ...(guid ? { guid } : {}),
         ...extra.sobre,
       };
-      grava.push({ ...nota, arquivo, cor, estado: estadoNota, itens: semTab(itens) });
+      grava.push({ ...nota, arquivo, cor, estado: estadoNota, itens: semTab(itens), ...extra.grava });
     };
 
     if (concluida) {
       if (g) fechamentosConcluidos.push(...doGrupo(g.id).map((t) => t.tabId));
       else if (l) pedirAbertura(l.titulo); // aberto, o próximo ciclo apaga
-      return salvar("concluido", itensNota);
+      // Sem grupo no navegador nem no Sync (lido com sucesso), a nota pode ir para o arquivo.
+      return salvar("concluido", itensNota, { grava: { semGrupo: !g && !l && loja !== null } });
     }
     if (g) {
       const nav = doGrupo(g.id);

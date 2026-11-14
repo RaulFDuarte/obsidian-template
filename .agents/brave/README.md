@@ -32,12 +32,15 @@ Log: `%LOCALAPPDATA%\flow-brave\servico.log`. O estado fica em `%LOCALAPPDATA%\f
 | Move a linha para outra nota | A mesma aba muda de grupo |
 | Cria uma nota na pasta | Cria o grupo e a tarefa |
 | Renomeia nota ou grupo, ou muda `cor:` | Replica no outro lado |
-| Conclui ou cancela a tarefa | Apaga o grupo (também no Sync); a nota fica como registro |
-| Reabre a tarefa | Recria o grupo |
+| Conclui ou cancela a tarefa | Apaga o grupo (também no Sync) e move a nota para `Arquivo/Brave/` |
+| Apaga o grupo no navegador | Conclui a tarefa (✅ hoje) e move a nota para `Arquivo/Brave/` |
+| Reabre a tarefa (`[ ]` ou `[/]`) de uma nota arquivada | A nota volta para `Prática/Tarefas/Brave/` e o grupo é recriado |
 | Clica no link da nota, no PC | Foca a aba já aberta em vez de duplicar; se ela está num grupo fechado, abre o grupo e vai até a aba |
 | Edita, renomeia ou apaga a nota de um grupo fechado, ou conclui a tarefa dele | O grupo abre, a mudança é aplicada e ele fecha de novo (ou é apagado) |
 
 Outras linhas de texto na nota são preservadas. Em `_Soltas_`, abas fixadas ficam de fora, e a seção 📱 é só leitura: mostra as abas do celular.
+
+Em Projetos, cada tarefa de grupo mostra o que o serviço viu no último ciclo: 🟢 aberto, ⚪ fechado.
 
 ## Limites
 

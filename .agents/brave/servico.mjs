@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import { lerLoja, pastaPerfil } from "./loja.mjs";
 import { SOLTAS, gerenciada, planejar } from "./modelo.mjs";
-import { acrescentarCaixa, adicionarTarefas, escreverNota, gravar, lerNota, renomearNaTarefa, statusTarefa } from "./notas.mjs";
+import { acrescentarCaixa, adicionarTarefas, escreverNota, gravar, lerNota, concluirTarefa, marcarEstados, moverNaTarefa, renomearNaTarefa, statusTarefa } from "./notas.mjs";
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url));
 const VAULT = process.env.FLOW_BRAVE_VAULT ?? path.resolve(AQUI, "../..");
@@ -17,6 +17,9 @@ const PORTA = Number(process.env.FLOW_BRAVE_PORTA ?? 47291);
 const PRATICA = path.join(VAULT, "Prática");
 const REL = "Prática/Tarefas/Brave";
 const PASTA = path.join(VAULT, REL);
+// Notas de grupos apagados no navegador saem da pasta viva: ficam como registro, fora da sincronização.
+const REL_ARQUIVO = "Arquivo/Brave";
+const PASTA_ARQUIVO = path.join(VAULT, REL_ARQUIVO);
 const PROJETOS = path.join(PRATICA, "Projetos.md");
 const CAIXA = path.join(PRATICA, "Caixa de Entrada.md");
 const hashVault = crypto.createHash("sha1").update(VAULT).digest("hex").slice(0, 10);
@@ -49,7 +52,7 @@ const [EXEC_INTERFACE, ARGS_INTERFACE] = WINDOWS
 
 function interface_(acao, titulo) {
   return new Promise((ok) => {
-    execFile(EXEC_INTERFACE, [...ARGS_INTERFACE, acao, titulo], { timeout: 30000, windowsHide: true }, (erro, saida) => {
+    execFile(EXEC_INTERFACE, [...ARGS_INTERFACE, acao, titulo], { timeout: 90000, windowsHide: true }, (erro, saida) => {
       try { ok(JSON.parse(saida)); } catch { ok({ ok: false, motivo: erro?.message ?? "sem resposta" }); }
     });
   });
@@ -77,12 +80,80 @@ async function abrirPorLink({ tabId, url }) {
   const fechados = Object.values(bases).filter((b) => b.estado === "fechado");
   const nota = notas.find((n) => n.estado === "fechado" && n.itens.some((i) => i.url === url));
   const titulo = nota && (bases[nota.id]?.titulo ?? nota.arquivo);
-  console.log(`link: ${titulo ? `grupo fechado "${titulo}"` : "fora de grupo fechado"}`);
+  console.log(`link: ${titulo ? `grupo fechado "${titulo}"` : "fora de grupo fechado"} (${url})`);
   if (!titulo || fechados.filter((b) => b.titulo === titulo).length > 1) return;
   const r = await interface_("abrir", titulo);
   if (!r.ok) return console.error(`link não abriu "${titulo}": ${r.motivo}`);
   esperaAbrir.set(titulo, Date.now() + 15000);
   conexao?.send(JSON.stringify({ tipo: "focar", tabId, url }));
+}
+
+/** Nome livre em `pasta`: o próprio, ou com sufixo " (2)", " (3)"... */
+function nomeLivre(pasta, nome) {
+  let n = nome;
+  for (let i = 2; fs.existsSync(path.join(pasta, `${n}.md`)); i++) n = `${nome} (${i})`;
+  return n;
+}
+
+const hoje = () => new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD local
+
+/**
+ * A nota acompanha o status da tarefa. Vai para Arquivo/Brave quando o grupo foi apagado no navegador
+ * (a tarefa é concluída) ou quando a tarefa foi concluída e o grupo já não existe. O grupo é esquecido
+ * no estado: fora da pasta, o próximo ciclo não vê nada a fazer. Devolve Projetos com os links no novo lugar.
+ */
+function arquivar(plano, projetos) {
+  let p = projetos;
+  for (const n of plano.grava.filter((x) => x.estado === "apagado" || (x.estado === "concluido" && x.semGrupo))) {
+    const origem = path.join(PASTA, `${n.arquivo}.md`);
+    if (!fs.existsSync(origem)) continue;
+    fs.mkdirSync(PASTA_ARQUIVO, { recursive: true });
+    const nome = nomeLivre(PASTA_ARQUIVO, n.arquivo);
+    try { fs.renameSync(origem, path.join(PASTA_ARQUIVO, `${nome}.md`)); } catch (e) {
+      console.error(`não consegui arquivar "${n.arquivo}": ${e.message}`);
+      continue;
+    }
+    delete plano.novoEstado.grupos[n.id];
+    p = moverNaTarefa(p, `${REL}/${n.arquivo}`, `${REL_ARQUIVO}/${nome}`);
+    if (n.estado === "apagado") p = concluirTarefa(p, `${REL_ARQUIVO}/${nome}`, hoje());
+    console.log(`arquivada: "${n.arquivo}" -> ${REL_ARQUIVO}/${nome}`);
+  }
+  return p;
+}
+
+/** Linhas de Projetos que apontam para o arquivo; o resto não deve decidir o status das notas vivas. */
+const linhasArquivo = (projetos, sim) =>
+  projetos.split("\n").filter((l) => l.includes(`[[${REL_ARQUIVO}/`) === sim).join("\n");
+
+/**
+ * Tarefa reaberta de nota arquivada: a nota volta para a pasta como nota nova (sem `estado`),
+ * e o ciclo cria o grupo a partir dela. Grava Projetos com o link de volta.
+ */
+function restaurarArquivados(projetos) {
+  let p = projetos;
+  const arquivo = linhasArquivo(projetos, true);
+  let arquivos = [];
+  try { arquivos = fs.readdirSync(PASTA_ARQUIVO).filter((f) => f.endsWith(".md") && !f.startsWith(".")); } catch { return p; }
+  for (const f of arquivos) {
+    const nome = f.slice(0, -3);
+    const st = statusTarefa(arquivo, nome);
+    if (st !== " " && st !== "/") continue;
+    const origem = path.join(PASTA_ARQUIVO, f);
+    const nota = lerNota(ler(origem), nome);
+    if (nota.conflito) continue;
+    const destino = nomeLivre(PASTA, nome);
+    try {
+      gravar(path.join(PASTA, `${destino}.md`), escreverNota({ ...nota, id: nota.id || novoId(), estado: "" }));
+      fs.rmSync(origem);
+    } catch (e) {
+      console.error(`não consegui restaurar "${nome}": ${e.message}`);
+      continue;
+    }
+    p = moverNaTarefa(p, `${REL_ARQUIVO}/${nome}`, `${REL}/${destino}`);
+    console.log(`restaurada: "${nome}" -> ${REL}/${destino}`);
+  }
+  if (p !== projetos) gravar(PROJETOS, p);
+  return p;
 }
 
 let conexao = null, snap = null, rodando = false, pendente = false, seq = 0;
@@ -115,14 +186,15 @@ async function ciclo() {
   if (!snap || !conexao) return;
   rodando = true;
   try {
+    const projetos = restaurarArquivados(ler(PROJETOS));
     const { notas, soltas, conflito } = lerNotas();
     if (conflito) return console.log("notas com conflito de merge: aguardando");
     const estado = lerEstado();
     const loja = await lerLoja(PERFIL);
-    const projetos = ler(PROJETOS);
+    const vivas = linhasArquivo(projetos, false);
     const plano = planejar({
       snap, loja, notas, soltas, estado, novoId,
-      statusTarefa: (n) => statusTarefa(projetos, n),
+      statusTarefa: (n) => statusTarefa(vivas, n),
       podeAbrir: (t) => Date.now() >= (esperaAbrir.get(t) ?? 0),
     });
 
@@ -148,6 +220,9 @@ async function ciclo() {
     let p = projetos;
     for (const { de, para } of plano.renomeios) p = renomearNaTarefa(p, de, para);
     p = adicionarTarefas(p, REL, plano.novasTarefas);
+    p = arquivar(plano, p);
+    const estados = Object.fromEntries(Object.values(plano.novoEstado.grupos ?? {}).map((g) => [g.arquivo, g.estado]));
+    p = marcarEstados(p, REL, estados);
     if (p !== projetos) gravar(PROJETOS, p);
 
     const fila = [...(estado.avisos ?? []), ...avisos, ...falhasInterface.splice(0)];

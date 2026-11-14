@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mesclar, nomeArquivo, planejar } from "../modelo.mjs";
-import { acrescentarCaixa, adicionarTarefas, escreverNota, lerNota, renomearNaTarefa, statusTarefa } from "../notas.mjs";
+import { acrescentarCaixa, adicionarTarefas, concluirTarefa, escreverNota, lerNota, marcarEstados, moverNaTarefa, renomearNaTarefa, statusTarefa } from "../notas.mjs";
 
 const i = (...u) => u.map((url) => ({ url, titulo: url }));
 const urls = (m) => m.itens.map((x) => x.url);
@@ -109,4 +109,46 @@ test("sem estado, nota com nome limpo casa com o grupo em vez de criar outro", (
   assert.equal(r.novoEstado.grupos.n.groupId, 7);
   assert.equal(Object.keys(r.novoEstado.grupos).length, 1);
   assert.deepEqual(r.novasTarefas, []);
+});
+
+test("marca o estado do grupo antes do link e troca o marcador antigo", () => {
+  const p = [
+    "- [ ] [[P/B/Kiro|Kiro]] ⏫",
+    "\t- [ ] ⚪ [[P/B/Delta|Delta]]",
+    "- [x] 🟢 [[P/B/Feito|Feito]]",
+    "- [ ] [[Outra nota]]",
+  ].join("\n");
+  const r = marcarEstados(p, "P/B", { Kiro: "aberto", Delta: "aberto", Feito: "concluido" });
+  assert.equal(r, [
+    "- [ ] 🟢 [[P/B/Kiro|Kiro]] ⏫",
+    "\t- [ ] 🟢 [[P/B/Delta|Delta]]",
+    "- [x] [[P/B/Feito|Feito]]",
+    "- [ ] [[Outra nota]]",
+  ].join("\n"));
+  assert.equal(statusTarefa(r, "Kiro"), " ");
+  assert.equal(marcarEstados(r, "P/B", { Kiro: "aberto", Delta: "aberto", Feito: "concluido" }), r);
+});
+
+test("nota arquivada: o link da tarefa segue o novo caminho", () => {
+  const p = "- [ ] [[P/B/windsurf configs|windsurf configs]]\n- [ ] [[P/B/windsurf configs 2|x]]\n- [ ] [link](P/B/windsurf%20configs.md)";
+  assert.equal(moverNaTarefa(p, "P/B/windsurf configs", "A/B/windsurf configs"),
+    "- [ ] [[A/B/windsurf configs|windsurf configs]]\n- [ ] [[P/B/windsurf configs 2|x]]\n- [ ] [link](A/B/windsurf%20configs.md)");
+});
+
+test("grupo apagado no navegador conclui a tarefa com data", () => {
+  const p = "\t- [ ] [[A/B/X|X]] ⏫\n- [ ] [[A/B/X (2)|X (2)]]\n- [x] [[A/B/Y|Y]] ✅ 2026-01-01";
+  assert.equal(concluirTarefa(p, "A/B/X", "2026-11-09"),
+    "\t- [x] [[A/B/X|X]] ⏫ ✅ 2026-11-09\n- [ ] [[A/B/X (2)|X (2)]]\n- [x] [[A/B/Y|Y]] ✅ 2026-01-01");
+});
+test("tarefa concluída só libera o arquivamento quando o grupo já não existe", () => {
+  const nota = { id: "n1", arquivo: "G", cor: "red", estado: "aberto", itens: i("a"), resto: "" };
+  const base = { arquivo: "G", titulo: "G", cor: "red", estado: "aberto", itens: i("a"), groupId: 7 };
+  const ent = (tabs, groups, loja) => planejar({
+    snap: { tabs, groups }, loja, notas: [nota], soltas: null, estado: { grupos: { n1: base } },
+    statusTarefa: () => "x", novoId: () => "z",
+  }).grava.find((g) => g.id === "n1");
+  const aba = [{ id: 1, url: "a", titulo: "a", grupo: 7, janela: 1, indice: 0, fixada: false }];
+  assert.equal(ent(aba, [{ id: 7, titulo: "G", cor: "red" }], []).semGrupo, false);
+  assert.equal(ent([], [], []).semGrupo, true);
+  assert.equal(ent([], [], null).semGrupo, false); // Sync ilegível: não arquiva
 });

@@ -13,10 +13,10 @@ $estado = Join-Path $env:LOCALAPPDATA "flow-brave"
 New-Item -ItemType Directory -Force $estado | Out-Null
 $log = Join-Path $estado "servico.log"
 
-# PowerShell oculto mantém o node em primeiro plano: a tarefa só termina se o serviço cair, e aí é reiniciada.
-$cmd = "& '$node' '$PSScriptRoot\servico.mjs' *>> '$log'"
-$args_ = "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -Command `"$cmd`""
-$acao = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $args_ -WorkingDirectory $PSScriptRoot
+# O wscript roda o node sem janela (powershell -WindowStyle Hidden abre uma aba vazia no Windows Terminal)
+# e espera o fim: a tarefa só termina se o serviço cair, e aí é reiniciada.
+$args_ = "`"$PSScriptRoot\servico-oculto.vbs`" `"$node`" `"$PSScriptRoot\servico.mjs`" `"$log`""
+$acao = New-ScheduledTaskAction -Execute "wscript.exe" -Argument $args_ -WorkingDirectory $PSScriptRoot
 $gatilho = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $config = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) `
   -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew

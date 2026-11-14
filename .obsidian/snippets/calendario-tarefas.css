@@ -93,7 +93,8 @@
   flex-direction: column;
   gap: 3px;
   overflow: hidden;
-  transition: background 0.1s;
+  /* Isola o layout da célula: mudar um chip não recalcula a grade inteira */
+  contain: layout style;
 }
 
 .cal-cel-fds {
@@ -294,6 +295,29 @@
 .dia-vazio {
   color: var(--text-muted);
   padding: 4px 6px;
+}
+
+/* Seleção múltipla (caixa de seleção + Shift/Ctrl+clique) */
+.cal-raiz {
+  user-select: none;
+}
+.cal-selecionado {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: -1px;
+}
+.dia-item.cal-selecionado {
+  background: color-mix(in srgb, var(--interactive-accent) 18%, transparent);
+}
+.cal-caixa {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  border: 1px solid var(--interactive-accent);
+  background: color-mix(in srgb, var(--interactive-accent) 15%, transparent);
+}
+.cal-sel-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 /* Árvore de subtarefas na visão dia */

@@ -36,6 +36,10 @@ public static class FlowBrave {
   [DllImport("user32.dll")] static extern bool ScreenToClient(IntPtr h, ref Ponto p);
   [DllImport("user32.dll")] static extern bool GetClientRect(IntPtr h, out Retangulo r);
   [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
+  [DllImport("user32.dll")] static extern int SetWindowLong(IntPtr h, int i, int v);
+  [DllImport("user32.dll")] static extern bool SetLayeredWindowAttributes(IntPtr h, uint cor, byte alfa, uint flags);
+  [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int atributo, ref int valor, int tamanho);
   // Coordenadas da acessibilidade são físicas; sem isto, telas com escala misturam físico e lógico.
   static FlowBrave() { SetProcessDPIAware(); }
   public struct Ponto { public int x; public int y; }
@@ -60,14 +64,14 @@ public static class FlowBrave {
     return r;
   }
 
-  static void Andar(object o, Regex re, int prof, long janela, List<No> saida) {
-    if (prof > 25) return;
+  static void Andar(object o, Regex re, int prof, long janela, List<No> saida, int limite) {
+    if (prof > 25 || saida.Count >= limite) return;
     int n;
     try { n = (int)o.GetType().InvokeMember("accChildCount", BindingFlags.GetProperty, null, o, null); } catch { return; }
     if (n <= 0) return;
     var filhos = new object[Math.Min(n, 400)]; int obtidos;
     if (AccessibleChildren(o, 0, filhos.Length, filhos, out obtidos) != 0) return;
-    for (int i = 0; i < obtidos; i++) {
+    for (int i = 0; i < obtidos && saida.Count < limite; i++) {
       var f = filhos[i];
       if (f is int) {
         var nm = Prop(o, "accName", f) as string;
@@ -79,19 +83,46 @@ public static class FlowBrave {
       if (papel is int && (int)papel == PAPEL_DOCUMENTO) continue; // conteúdo das páginas
       var nome = Prop(f, "accName", 0) as string;
       if (nome != null && re.IsMatch(nome)) saida.Add(new No { Obj = f, Filho = 0, Janela = janela });
-      Andar(f, re, prof + 1, janela, saida);
+      Andar(f, re, prof + 1, janela, saida, limite);
     }
   }
 
   /// Procura em todas as janelas visíveis do processo: menus e popups são janelas próprias.
-  public static List<No> Achar(uint pid, string padrao) {
+  public static List<No> Achar(uint pid, string padrao) { return Achar(pid, padrao, int.MaxValue, 0); }
+
+  /// Cada varredura da janela principal custa segundos (chamadas entre processos), então para em `limite`
+  /// resultados e pode pular uma janela (`excluir`), para buscar só no menu aberto.
+  public static List<No> Achar(uint pid, string padrao, int limite, long excluir) {
     var saida = new List<No>(); var re = new Regex(padrao);
     var g = new Guid("618736E0-3C3D-11CF-810C-00AA00389B71");
     foreach (var j in Janelas(pid)) {
+      if (j == excluir || saida.Count >= limite) continue;
       object raiz;
-      if (AccessibleObjectFromWindow(new IntPtr(j), 0xFFFFFFFC, ref g, out raiz) == 0 && raiz != null) Andar(raiz, re, 0, j, saida);
+      if (AccessibleObjectFromWindow(new IntPtr(j), 0xFFFFFFFC, ref g, out raiz) == 0 && raiz != null) Andar(raiz, re, 0, j, saida, limite);
     }
     return saida;
+  }
+
+  /// Deixa invisível qualquer janela nova do processo (menus e popups) pelos próximos `ms` milissegundos,
+  /// sem movê-la (o Brave fecha o menu que sai do lugar). A acessibilidade continua acionando os itens.
+  public static void Esconder(uint pid, int ms) {
+    var antes = new HashSet<long>(Janelas(pid));
+    var feitas = new HashSet<long>();
+    var t = new System.Threading.Thread(() => {
+      int fim = Environment.TickCount + ms;
+      while (Environment.TickCount < fim) {
+        foreach (var j in Janelas(pid)) {
+          if (antes.Contains(j) || feitas.Contains(j)) continue;
+          var h = new IntPtr(j); int sim = 1;
+          DwmSetWindowAttribute(h, 13, ref sim, 4); // DWMWA_CLOAK
+          SetWindowLong(h, -20, GetWindowLong(h, -20) | 0x80000); // WS_EX_LAYERED
+          SetLayeredWindowAttributes(h, 0, 0, 2); // LWA_ALPHA = 0
+          feitas.Add(j);
+        }
+        System.Threading.Thread.Sleep(2);
+      }
+    });
+    t.IsBackground = true; t.Start();
   }
 
   public static bool Acionar(No n) {
@@ -142,30 +173,35 @@ $t = [regex]::Escape($titulo)
 $travessao = [string][char]0x2013
 $cabecalho = "^Grupo\s+$t\s+$travessao"
 
-function Abriu { (@([FlowBrave]::Achar($app, "^\s*grupo\s+$t" + ':\s+Aberto$')).Count + @([FlowBrave]::Achar($app, $cabecalho)).Count) -gt 0 }
+$aberto = "^\s*grupo\s+$t" + ':\s+Aberto$'
+$fechado = "^\s*grupo\s+$t" + ':\s+Fechado$'
+function Abriu { @([FlowBrave]::Achar($app, "($aberto)|($cabecalho)", 1, 0)).Count -gt 0 }
 
 if ($acao -eq "abrir") {
-  if (Abriu) { Responder $true "ja aberto" }
-  $fechado = "^\s*grupo\s+$t" + ':\s+Fechado$'
+  # Uma varredura só: estado aberto ou botão do grupo fechado na barra.
+  $r = @([FlowBrave]::Achar($app, "($aberto)|($cabecalho)|($fechado)", 1, 0))
+  if ($r.Count -and $r[0].Nome -notmatch 'Fechado$') { Responder $true "ja aberto" }
   # Botão que não cabe na barra aceita o comando e não faz nada. Por isso tenta, confere e só então vai pelo menu.
-  $botao = @([FlowBrave]::Achar($app, $fechado)) | Select-Object -First 1
+  $botao = $r | Select-Object -First 1
   if ($botao) {
     [void][FlowBrave]::Acionar($botao)
     if (Esperar { Abriu } 2.5) { Responder $true }
   }
-  $menus = @([FlowBrave]::Achar($app, "^Grupos de guias$"))
+  $menus = @([FlowBrave]::Achar($app, "^Grupos de guias$", 2, 0))
   $menu = @($menus | Where-Object { $_.Visivel }) + $menus | Select-Object -First 1
   if (-not $menu) { Responder $false "interface indisponivel (Brave sem a flag de acessibilidade?)" }
+  [FlowBrave]::Esconder($app, 6000)
   [void][FlowBrave]::Acionar($menu)
-  $item = Esperar { @([FlowBrave]::Achar($app, $fechado)) | Where-Object { $_.Janela -ne $menu.Janela } | Select-Object -First 1 }
+  $item = Esperar { @([FlowBrave]::Achar($app, $fechado, 1, $menu.Janela)) | Select-Object -First 1 }
   if ($item) { [void][FlowBrave]::Acionar($item) } else { [void][FlowBrave]::Acionar($menu) } # sem item: fecha o menu
   if (Esperar { Abriu }) { Responder $true }
   Responder $false "o Brave nao abriu o grupo"
 }
 
-$cab = @([FlowBrave]::Achar($app, $cabecalho)) | Select-Object -First 1
+$cab = @([FlowBrave]::Achar($app, $cabecalho, 1, 0)) | Select-Object -First 1
 if (-not $cab) { Responder $false "cabecalho do grupo nao encontrado" }
+[FlowBrave]::Esconder($app, 6000)
 if (-not [FlowBrave]::CliqueDireito($cab)) { Responder $false "cabecalho do grupo fora da tela" }
-$botao = Esperar { @([FlowBrave]::Achar($app, "^Fechar grupo")) | Where-Object { $_.Janela -ne $cab.Janela } | Select-Object -First 1 }
+$botao = Esperar { @([FlowBrave]::Achar($app, "^Fechar grupo", 1, $cab.Janela)) | Select-Object -First 1 }
 if (-not $botao) { Responder $false "botao Fechar grupo nao encontrado" }
 Responder ([FlowBrave]::Acionar($botao))

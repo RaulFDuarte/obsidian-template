@@ -90,6 +90,22 @@ export function statusTarefa(projetos, nome) {
 
 export const linkNota = (pasta, nome) => `[[${pasta}/${nome}|${nome}]]`;
 
+// Marcador antes do link da tarefa: mostra no Obsidian o que o serviço viu no navegador no último ciclo.
+export const MARCA_ESTADO = { aberto: "🟢", fechado: "⚪" };
+const MARCAS = new RegExp(`(?:${Object.values(MARCA_ESTADO).join("|")})\\s*`, "gu");
+
+/** Põe 🟢/⚪ antes do link de cada tarefa de grupo; `estados` mapeia nome da nota → "aberto" | "fechado". */
+export function marcarEstados(projetos, pasta, estados) {
+  const alvo = new RegExp(`^(\\s*- \\[.\\] )(.*?)(\\[\\[${esc(pasta)}/([^|\\]]+?)(?:\\.md)?(?:\\|[^\\]]*)?\\]\\].*)$`);
+  return projetos.split("\n").map((l) => {
+    const m = l.match(alvo);
+    if (!m) return l;
+    const marca = MARCA_ESTADO[estados[m[4]]];
+    const antes = m[2].replace(MARCAS, "");
+    return `${m[1]}${antes}${marca ? `${marca} ` : ""}${m[3]}`;
+  }).join("\n");
+}
+
 export function adicionarTarefas(projetos, pasta, nomes, secao = "### 📋️ Sem Categoria") {
   if (!nomes.length) return projetos;
   const novas = nomes.map((n) => `- [ ] ${linkNota(pasta, n)}`).join("\n");
@@ -107,6 +123,24 @@ export function renomearNaTarefa(projetos, de, para) {
       .replace(new RegExp(`\\|${esc(a)}\\]\\]`, "g"), `|${b}]]`);
   }
   return s;
+}
+
+/** Troca o caminho da nota nos links de Projetos (`de` e `para` relativos ao vault, sem `.md`). */
+export function moverNaTarefa(projetos, de, para) {
+  let s = projetos;
+  for (const [a, b] of [[de, para], [encodeURI(de), encodeURI(para)]]) {
+    s = s.replace(new RegExp(`(\\[\\[|\\]\\()${esc(a)}(\\.md)?(\\]\\]|\\||#|\\))`, "g"), `$1${b}$2$3`);
+  }
+  return s;
+}
+
+/** Marca como concluída (com ✅ data) a tarefa aberta que aponta para `caminho` (relativo ao vault, sem `.md`). */
+export function concluirTarefa(projetos, caminho, data) {
+  const r = new RegExp(`\\[\\[${esc(caminho)}(?:\\.md)?(?:\\]\\]|\\|)`);
+  return projetos.split("\n").map((l) => {
+    const m = l.match(/^(\s*- \[)[ /](\].*?)\s*$/);
+    return m && r.test(l) ? `${m[1]}x${m[2]} ✅ ${data}` : l;
+  }).join("\n");
 }
 
 /** Acrescenta avisos em "Para categorizar"; devolve null se o processar-inbox estiver rodando. */
